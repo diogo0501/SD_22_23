@@ -1,3 +1,10 @@
+/**
+Grupo 47
+Diogo Fernandes, fc54458
+Gonçalo Lopes, fc56334
+Miguel Santos, fc54461
+*/
+
 #include "data.h"
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +57,7 @@ void data_destroy(struct data_t *data) {
  * necessária para a nova estrutura, inclusivamente dados.
  */
 struct data_t *data_dup(struct data_t *data) {
-    if(data == NULL || data->data == NULL) {
+    if(data == NULL || data->data == NULL || data->datasize <= 0) {
         return NULL;
     } else {
         void *dupeddata = malloc(data->datasize);
