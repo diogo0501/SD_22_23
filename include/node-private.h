@@ -1,7 +1,7 @@
 #ifndef _NODE_PRIVATE_H
 #define _NODE_PRIVATE_H
 
-#include "tree-private.h"
+#include "../include/tree-private.h"
 
 
 /* Função para adicionar um par chave-valor à árvore.
