@@ -1,8 +1,8 @@
 #ifndef _SERIALIZATION_H
 #define _SERIALIZATION_H
 
-#include "data.h"
-#include "entry.h"
+#include "../include/data.h"
+#include "../include/entry.h"
 
 
 /* Serializa todas as keys presentes no array de strings keys
