@@ -5,8 +5,8 @@ Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
 */
 
-#include "entry.h"
-#include "node-private.h"
+#include "../include/entry.h"
+#include "../include/node-private.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,16 +22,19 @@ Miguel Santos, fc54461
  */
 void node_destroy(struct node_t *treeRoot) {
 
-    struct node_t *node = treeRoot;
-    if(node->entry == NULL) {
-        return;
-    }
-    node_destroy(node->left);
-    node_destroy(node->right);
-    if(node->left == NULL && node->right == NULL) {
-        free(node);
-        return;
-    }
+	struct node_t *node = treeRoot;
+	if(node->entry == NULL) {
+		free(node);
+		return;
+	}
+
+	if(node->left == NULL && node->right == NULL) {
+		free(node);
+		return;
+	}
+
+	node_destroy(node->left);
+	node_destroy(node->right);
 
 }
 
@@ -42,24 +45,31 @@ int node_put(struct node_t *treeRoot, struct entry_t *entry) {
         return -1;
     }
 
+    //Problema aqui. Nao consigo aceder a um NULL pointer e se tentar copiar a struct a referencia com o no pai perde-se
+    if(treeRoot == NULL) {
+    	struct node_t *tmpRoot = malloc(sizeof(struct node_t));
+    	tmpRoot = treeRoot;
+    	tmpRoot->entry = entry;
+    	tmpRoot->left = NULL;
+    	tmpRoot->right = NULL;
+    	treeRoot = tmpRoot;
+    	return 0;
+    }
+
     if(treeRoot->entry == NULL) {
         treeRoot->entry = entry;
-        treeRoot->left = NULL;
-        treeRoot->left->entry = NULL;
-        treeRoot->right = NULL;
-        treeRoot->right->entry = NULL;
         return 0;
     }
 
-    if(entry->key < treeRoot->entry->key) {
+    if(strcmp(entry->key,treeRoot->entry->key) < 0) {
         node_put(treeRoot->left, entry);
     }
 
-    if(entry->key > treeRoot->entry->key) {
+    if(strcmp(entry->key,treeRoot->entry->key) > 0) {
         node_put(treeRoot->right, entry);
     }
 
-    if(entry->key == treeRoot->entry->key) {
+    if(strcmp(entry->key,treeRoot->entry->key) == 0) {
         treeRoot->entry = entry;
         return 1;
     }
@@ -77,7 +87,7 @@ int node_put(struct node_t *treeRoot, struct entry_t *entry) {
  */
 struct entry_t *node_get(struct node_t *treeRoot, char *key) {
 
-    if(key == NULL) {
+    if(treeRoot == NULL || key == NULL || treeRoot->entry == NULL) {
         return NULL;
     }
 
@@ -106,13 +116,16 @@ struct entry_t *node_get(struct node_t *treeRoot, char *key) {
  */
 int node_calculateTreeHeight(struct node_t *treeRoot) {
 
+	if(treeRoot == NULL) {
+		return 0;
+	}
     if(treeRoot->entry == NULL) {
         return 0;
     } else {
         int heightOfLeftSubTree = node_calculateTreeHeight(treeRoot->left);
         int heightOfRightSubTree = node_calculateTreeHeight(treeRoot->right);
 
-        return max(heightOfLeftSubTree, heightOfRightSubTree) + 1;              // ao incrementar o valor cada vez que descemos um nivel da arvore obtemos o valor da sua altura
+        return max(heightOfLeftSubTree, heightOfRightSubTree) + 1;  // ao incrementar o valor cada vez que descemos um nivel da arvore obtemos o valor da sua altura
     }
 
 }
