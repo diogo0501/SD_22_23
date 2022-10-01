@@ -1,7 +1,7 @@
 #ifndef _TREE_H
 #define _TREE_H /* Módulo tree */
 
-#include "data.h"
+#include "../include/data.h"
 
 struct tree_t; /* A definir pelo grupo em tree-private.h */
 
