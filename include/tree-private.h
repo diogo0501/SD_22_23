@@ -1,7 +1,7 @@
 #ifndef _TREE_PRIVATE_H
 #define _TREE_PRIVATE_H
 
-#include "tree.h"
+#include "../include/tree.h"
 
 struct node_t {
 	struct entry_t *entry;
