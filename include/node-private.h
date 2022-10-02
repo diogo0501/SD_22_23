@@ -53,6 +53,7 @@ int node_calculateTreeHeight(struct node_t *treeRoot);
  * Retorna 0 (ok) ou -1 em caso de erro.
  */
 struct node_t *node_findLeftmostLeaf(struct node_t *node);
+
 /* Função para adicionar um par chave-valor à árvore.
  * Os dados de entrada desta função deverão ser copiados, ou seja, a
  * função vai *COPIAR* a key (string) e os dados para um novo espaço de
@@ -61,7 +62,7 @@ struct node_t *node_findLeftmostLeaf(struct node_t *node);
  * a necessária gestão da memória para armazenar os novos dados.
  * Retorna 0 (ok) ou -1 em caso de erro.
  */
-int node_del(struct tree_t *tree,struct node_t *treeRoot, char *key);
+int node_del(struct node_t *parent_node ,struct node_t *treeRoot, char *key);
 
 /* Função para adicionar um par chave-valor à árvore.
  * Os dados de entrada desta função deverão ser copiados, ou seja, a
