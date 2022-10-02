@@ -21,7 +21,7 @@ void node_destroy(struct node_t *treeRoot);
  * a necessária gestão da memória para armazenar os novos dados.
  * Retorna 0 (ok) ou -1 em caso de erro.
  */
-int node_put(struct node_t *treeRoot, struct entry_t *entry);
+int node_put(struct node_t *parent_node , struct node_t *node, struct entry_t *entry);
 
 
 /* Função para adicionar um par chave-valor à árvore.
