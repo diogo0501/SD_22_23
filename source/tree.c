@@ -38,7 +38,10 @@ struct tree_t *tree_create() {
  */
 void tree_destroy(struct tree_t *tree) {
 
-
+	if(tree == NULL) {
+		free(tree);
+		return;
+	}
 	if(tree->root == NULL) {
 		free(tree);
 		return;
@@ -74,7 +77,7 @@ int tree_put(struct tree_t *tree, char *key, struct data_t *value) {
 	strcpy(dupedKey,key);
 	struct entry_t *entry = entry_create(dupedKey, dupedData);
 
-	int code = node_put(tree->root, entry);
+	int code = node_put(NULL,tree->root, entry);
 
 	if(code == -1) {
 		return code;
@@ -123,13 +126,12 @@ int tree_del(struct tree_t *tree, char *key) {
 	}
 
 	int isDeleted = node_del(tree,tree->root,key);
-	if(isDeleted == 0) {
 
-		return 0;
+	if(isDeleted == 0) {
+		tree->nrElements--;
 	}
 
-
-	return -1;
+	return isDeleted;
 }
 
 /* Função que devolve o número de elementos contidos na árvore.
@@ -153,7 +155,7 @@ char **tree_get_keys(struct tree_t *tree) {
 	if(tree == NULL) {
 		return NULL;
 	}
-
+	//Ordem lexicografica em faLta
 	char **keys = malloc(sizeof(char *) * (tree->nrElements + 1));
 	keys = node_getKeys(tree,tree->root,keys,0);
 	keys[tree->nrElements] = NULL;
