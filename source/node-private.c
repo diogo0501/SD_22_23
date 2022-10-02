@@ -3,7 +3,7 @@ Grupo 47
 Diogo Fernandes, fc54458
 Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
-*/
+ */
 
 #include "../include/entry.h"
 #include "../include/node-private.h"
@@ -23,7 +23,14 @@ Miguel Santos, fc54461
 void node_destroy(struct node_t *treeRoot) {
 
 	struct node_t *node = treeRoot;
+
+	if(node == NULL) {
+		free(node);
+		return;
+	}
+
 	if(node->entry == NULL) {
+		entry_destroy(node->entry);
 		free(node);
 		return;
 	}
@@ -39,42 +46,57 @@ void node_destroy(struct node_t *treeRoot) {
 }
 
 
-int node_put(struct node_t *treeRoot, struct entry_t *entry) {
-    
-    if(entry == NULL) {
-        return -1;
-    }
+int node_put(struct node_t *parent_node, struct node_t *node, struct entry_t *entry) {
 
-    //Problema aqui. Nao consigo aceder a um NULL pointer e se tentar copiar a struct a referencia com o no pai perde-se
-    if(treeRoot == NULL) {
-    	struct node_t *tmpRoot = malloc(sizeof(struct node_t));
-    	tmpRoot = treeRoot;
-    	tmpRoot->entry = entry;
-    	tmpRoot->left = NULL;
-    	tmpRoot->right = NULL;
-    	treeRoot = tmpRoot;
-    	return 0;
-    }
+	if(entry == NULL) {
+		return -1;
+	}
 
-    if(treeRoot->entry == NULL) {
-        treeRoot->entry = entry;
-        return 0;
-    }
+	if(parent_node == NULL && node == NULL) {
+		node->entry = entry;
+		node->left = NULL;
+		node->right = NULL;
+		return 0;
+	}
 
-    if(strcmp(entry->key,treeRoot->entry->key) < 0) {
-        node_put(treeRoot->left, entry);
-    }
+	//Problema aqui. Nao consigo aceder a um NULL pointer e se tentar copiar a struct a referencia
+	//com o no pai perde-se
+	if(node == NULL && parent_node != NULL) {
+		struct node_t *tmpRoot = malloc(sizeof(struct node_t));
+		tmpRoot->entry = entry;
+		tmpRoot->left = NULL;
+		tmpRoot->right = NULL;
+		node = tmpRoot;
 
-    if(strcmp(entry->key,treeRoot->entry->key) > 0) {
-        node_put(treeRoot->right, entry);
-    }
+		//Spaghetti code !!!!!!!!!
+		if(strcmp(entry->key,parent_node->entry->key) < 0) {
+			parent_node->left = node;
+		}
+		else {
+			parent_node->right = node;
+		}
+		return 0;
+	}
 
-    if(strcmp(entry->key,treeRoot->entry->key) == 0) {
-        treeRoot->entry = entry;
-        return 1;
-    }
+	if(node->entry == NULL) {
+		node->entry = entry;
+		return 0;
+	}
 
-    return 0;
+	if(strcmp(entry->key,node->entry->key) < 0) {
+		return node_put(node,node->left, entry);
+	}
+
+	if(strcmp(entry->key,node->entry->key) > 0) {
+		return node_put(node,node->right, entry);
+	}
+
+	if(strcmp(entry->key,node->entry->key) == 0) {
+		node->entry = entry;
+		return 1;
+	}
+
+	return 0;
 }
 
 /* Função para adicionar um par chave-valor à árvore.
@@ -87,23 +109,23 @@ int node_put(struct node_t *treeRoot, struct entry_t *entry) {
  */
 struct entry_t *node_get(struct node_t *treeRoot, char *key) {
 
-    if(treeRoot == NULL || key == NULL || treeRoot->entry == NULL) {
-        return NULL;
-    }
+	if(treeRoot == NULL || key == NULL || treeRoot->entry == NULL) {
+		return NULL;
+	}
 
-    if(key < treeRoot->entry->key) {
-        node_get(treeRoot->left, key);
-    }
+	if(strcmp(key,treeRoot->entry->key) < 0) {
+		return node_get(treeRoot->left, key);
+	}
 
-    if(key > treeRoot->entry->key) {
-        node_get(treeRoot->right, key);
-    }
+	if(strcmp(key,treeRoot->entry->key) > 0) {
+		return node_get(treeRoot->right, key);
+	}
 
-    if(key == treeRoot->entry->key) {
-        return treeRoot->entry;
-    }
+	if(strcmp(key,treeRoot->entry->key) == 0) {
+		return treeRoot->entry;
+	}
 
-    return NULL;
+	return NULL;
 }
 
 /* Função para adicionar um par chave-valor à árvore.
@@ -119,26 +141,27 @@ int node_calculateTreeHeight(struct node_t *treeRoot) {
 	if(treeRoot == NULL) {
 		return 0;
 	}
-    if(treeRoot->entry == NULL) {
-        return 0;
-    } else {
-        int heightOfLeftSubTree = node_calculateTreeHeight(treeRoot->left);
-        int heightOfRightSubTree = node_calculateTreeHeight(treeRoot->right);
+	if(treeRoot->entry == NULL) {
+		return 0;
+	} else {
+		int heightOfLeftSubTree = node_calculateTreeHeight(treeRoot->left);
+		int heightOfRightSubTree = node_calculateTreeHeight(treeRoot->right);
 
-        return max(heightOfLeftSubTree, heightOfRightSubTree) + 1;  // ao incrementar o valor cada vez que descemos um nivel da arvore obtemos o valor da sua altura
-    }
+		return max(heightOfLeftSubTree, heightOfRightSubTree) + 1;  // ao incrementar o valor cada vez que descemos um nivel da arvore obtemos o valor da sua altura
+	}
 
 }
 
 struct node_t *node_findLeftmostLeaf(struct node_t *node) {
 
-    struct node_t *current_node = node;
+	struct node_t *current_node = node;
 
-    while(current_node->entry && current_node->left->entry != NULL) {
-        current_node = current_node->left;
-    }
+	if(node == NULL || node->entry == NULL) {
+		return current_node;
+	}
 
-    return current_node;
+	return node_findLeftmostLeaf(node->left);
+
 }
 /* Função para adicionar um par chave-valor à árvore.
  * Os dados de entrada desta função deverão ser copiados, ou seja, a
@@ -150,36 +173,38 @@ struct node_t *node_findLeftmostLeaf(struct node_t *node) {
  */
 int node_del(struct tree_t *tree,struct node_t *treeRoot, char *key) {
 
-    if(treeRoot->entry == NULL) {
-        return -1;
-    }
+	if(tree == NULL || treeRoot == NULL || treeRoot->entry == NULL) {
+		return -1;
+	}
 
-    if(key < treeRoot->entry->key) {
-        node_del(tree, treeRoot->left,key);
-    } else if(key > treeRoot->entry->key){
-        node_del(tree, treeRoot->right,key);
-    } else {
-        if(treeRoot->left->entry == NULL) {
-            struct node_t *node = treeRoot->right;
-            free(treeRoot);
-            treeRoot = NULL;
-            free(treeRoot->entry);
-            return tree_put(tree, node->entry->key, node->entry->value);
-        } else if(treeRoot->right->entry == NULL) {
-            struct node_t *node = treeRoot->left;
-            free(treeRoot);
-            treeRoot = NULL;
-            free(treeRoot->entry);
-            return tree_put(tree, node->entry->key, node->entry->value);           
-        }
-    
-    struct node_t *node = node_findLeftmostLeaf(treeRoot->right);
+	if(strcmp(key,treeRoot->entry->key) < 0) {
+		return node_del(tree, treeRoot->left,key);
+	} else if(strcmp(key,treeRoot->entry->key) > 0){
+		return node_del(tree, treeRoot->right,key);
+	}
+	if(treeRoot->left->entry == NULL) {
+		struct node_t *node = treeRoot->right;
+		free(treeRoot->entry);
+		treeRoot = NULL;
+		free(treeRoot);
+		return tree_put(tree, node->entry->key, node->entry->value);
+	} else if(treeRoot->right->entry == NULL) {
+		struct node_t *node = treeRoot->left;
+		free(treeRoot->entry);
+		treeRoot = NULL;
+		free(treeRoot);
+		return tree_put(tree, node->entry->key, node->entry->value);
+	}
 
-    treeRoot->entry = node->entry;
+	//Erro nesta parte. Falta apenas isto para o testDelExistente
+	struct node_t *node = node_findLeftmostLeaf(treeRoot->right);
 
-    node_del(tree, treeRoot->right, node->entry->key);
-    }
-    return 0;
+	if(node != NULL && node->entry != NULL) {
+		treeRoot->entry = node->entry;
+	}
+
+	return node_del(tree, treeRoot->right, node->entry->key);
+
 }
 
 /* Função para adicionar um par chave-valor à árvore.
@@ -192,17 +217,17 @@ int node_del(struct tree_t *tree,struct node_t *treeRoot, char *key) {
  */
 char **node_getKeys(struct tree_t *tree,struct node_t *treeRoot, char **keys, int i){
 
-    if(tree == NULL || treeRoot->entry == NULL) {
-        return NULL;
-    }
+	if(tree == NULL || treeRoot->entry == NULL) {
+		return NULL;
+	}
 
-    if(i < tree->nrElements) {
-        keys[i] = malloc(strlen(treeRoot->entry->key) + 1);
-        strcpy(keys[i], treeRoot->entry->key);
-        keys = node_getKeys(tree, treeRoot->left, keys, i + 1);
-        keys = node_getKeys(tree, treeRoot->right, keys, i + 1);
-    }
-    return keys;
+	if(i < tree->nrElements) {
+		keys[i] = malloc(strlen(treeRoot->entry->key) + 1);
+		strcpy(keys[i], treeRoot->entry->key);
+		keys = node_getKeys(tree, treeRoot->left, keys, i + 1);
+		keys = node_getKeys(tree, treeRoot->right, keys, i + 1);
+	}
+	return keys;
 }
 
 /* Função para adicionar um par chave-valor à árvore.
@@ -215,24 +240,24 @@ char **node_getKeys(struct tree_t *tree,struct node_t *treeRoot, char **keys, in
  */
 void **node_getValues(struct tree_t *tree,struct node_t *treeRoot, void **values, int i){
 
-    if(tree == NULL || treeRoot->entry == NULL) {
-        return NULL;
-    }
+	if(tree == NULL || treeRoot->entry == NULL) {
+		return NULL;
+	}
 
-    if(i < tree->nrElements) {
-        values[i] = malloc(treeRoot->entry->value->datasize);
-        strcpy(values[i], treeRoot->entry->key);
-        values = node_getValues(tree, treeRoot->left, values, i + 1);
-        values = node_getValues(tree, treeRoot->right, values, i + 1);
-    }
-    return values;
+	if(i < tree->nrElements) {
+		values[i] = malloc(treeRoot->entry->value->datasize);
+		strcpy(values[i], treeRoot->entry->key);
+		values = node_getValues(tree, treeRoot->left, values, i + 1);
+		values = node_getValues(tree, treeRoot->right, values, i + 1);
+	}
+	return values;
 }
 /* Função auxiliar max.
  */
 int max(int a, int b) {
-    if(a > b) {
-        return a;
-    } else {
-        return b;
-    }
+	if(a > b) {
+		return a;
+	} else {
+		return b;
+	}
 }
