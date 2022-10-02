@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 int keyArray_to_buffer(char **keys, char **keys_buf){
-    int size = strlen(*keys)+1;
+    int size = sizeof(keys)/sizeof(char*);
     keys_buf = malloc(sizeof(int)+size);
     if(keys_buf==NULL){
         return -1;
@@ -11,7 +11,7 @@ int keyArray_to_buffer(char **keys, char **keys_buf){
 
     memcpy(keys_buf,&size,sizeof(int));
     memcpy(keys_buf+sizeof(int),&keys,size);
-    return(strlen(*keys_buf));
+    return size+sizeof(int);
 }
 
 char** buffer_to_keyArray(char *keys_buf, int keys_buf_size){
