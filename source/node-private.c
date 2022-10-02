@@ -20,28 +20,27 @@ Miguel Santos, fc54461
  * a necessária gestão da memória para armazenar os novos dados.
  * Retorna 0 (ok) ou -1 em caso de erro.
  */
+
+//Acho que tem erros
 void node_destroy(struct node_t *treeRoot) {
 
-	struct node_t *node = treeRoot;
-
-	if(node == NULL) {
-		free(node);
+	if(treeRoot == NULL) {
 		return;
 	}
 
-	if(node->entry == NULL) {
-		entry_destroy(node->entry);
-		free(node);
+	if(treeRoot->entry == NULL) {
+		entry_destroy(treeRoot->entry);
+		free(treeRoot);
 		return;
 	}
 
-	if(node->left == NULL && node->right == NULL) {
-		free(node);
+	if(treeRoot->left == NULL && treeRoot->right == NULL) {
+		free(treeRoot);
 		return;
 	}
 
-	node_destroy(node->left);
-	node_destroy(node->right);
+	node_destroy(treeRoot->left);
+	node_destroy(treeRoot->right);
 
 }
 
@@ -138,6 +137,7 @@ struct entry_t *node_get(struct node_t *treeRoot, char *key) {
  */
 int node_calculateTreeHeight(struct node_t *treeRoot) {
 
+	//Nao esta a funcionar!!!
 	if(treeRoot == NULL) {
 		return 0;
 	}
@@ -154,10 +154,19 @@ int node_calculateTreeHeight(struct node_t *treeRoot) {
 
 struct node_t *node_findLeftmostLeaf(struct node_t *node) {
 
-	struct node_t *current_node = node;
+	if(node == NULL) {
+		return NULL;
+	}
 
-	if(node == NULL || node->entry == NULL) {
-		return current_node;
+	if(node->left == NULL && node->right == NULL) {
+		return node;
+	}
+
+	if(node->left == NULL || node->right == NULL) {
+		if(node->left == NULL) {
+			return node->right;
+		}
+		return node->left;
 	}
 
 	return node_findLeftmostLeaf(node->left);
@@ -171,40 +180,74 @@ struct node_t *node_findLeftmostLeaf(struct node_t *node) {
  * a necessária gestão da memória para armazenar os novos dados.
  * Retorna 0 (ok) ou -1 em caso de erro.
  */
-int node_del(struct tree_t *tree,struct node_t *treeRoot, char *key) {
+int node_del(struct node_t *parent_node,struct node_t *treeRoot, char *key) {
 
-	if(tree == NULL || treeRoot == NULL || treeRoot->entry == NULL) {
+	if(treeRoot == NULL || treeRoot->entry == NULL) {
 		return -1;
 	}
 
 	if(strcmp(key,treeRoot->entry->key) < 0) {
-		return node_del(tree, treeRoot->left,key);
-	} else if(strcmp(key,treeRoot->entry->key) > 0){
-		return node_del(tree, treeRoot->right,key);
-	}
-	if(treeRoot->left->entry == NULL) {
-		struct node_t *node = treeRoot->right;
-		free(treeRoot->entry);
-		treeRoot = NULL;
-		free(treeRoot);
-		return tree_put(tree, node->entry->key, node->entry->value);
-	} else if(treeRoot->right->entry == NULL) {
-		struct node_t *node = treeRoot->left;
-		free(treeRoot->entry);
-		treeRoot = NULL;
-		free(treeRoot);
-		return tree_put(tree, node->entry->key, node->entry->value);
+		return node_del(treeRoot, treeRoot->left,key);
 	}
 
-	//Erro nesta parte. Falta apenas isto para o testDelExistente
-	struct node_t *node = node_findLeftmostLeaf(treeRoot->right);
-
-	if(node != NULL && node->entry != NULL) {
-		treeRoot->entry = node->entry;
+	if(strcmp(key,treeRoot->entry->key) > 0){
+		return node_del(treeRoot, treeRoot->right,key);
 	}
 
-	return node_del(tree, treeRoot->right, node->entry->key);
+	//Encontrou o node a eliminar
+	if(strcmp(key,treeRoot->entry->key) == 0) {
 
+		//Quando o nó é uma folha
+		if(treeRoot->right == NULL && treeRoot->left == NULL) {
+			node_destroy(treeRoot);
+			return 0;
+		}
+
+		//Quando o no so tem um filho
+		if(treeRoot->right == NULL || treeRoot->left == NULL) {
+			if(treeRoot->right != NULL) {
+				if(strcmp(key,parent_node->entry->key) < 0) {
+					parent_node->left = treeRoot->right;
+					node_destroy(treeRoot);
+					return 0;
+				}
+				else {
+					parent_node->right = treeRoot->right;
+					node_destroy(treeRoot);
+					return 0;
+				}
+			}
+			if(strcmp(key,parent_node->entry->key) < 0) {
+				parent_node->left = treeRoot->left;
+				node_destroy(treeRoot);
+				return 0;
+			}
+			else {
+				parent_node->right = treeRoot->left;
+				node_destroy(treeRoot);
+				return 0;
+			}
+		}
+
+		//Quando o no tem dois filhos
+		struct node_t *leftest_node = malloc(sizeof(struct node_t));
+		struct node_t *leftest_nodedup = malloc(sizeof(struct node_t));
+		//Falta args
+		leftest_node = node_findLeftmostLeaf(treeRoot);
+		leftest_nodedup = leftest_node;
+		leftest_nodedup->right = treeRoot->right;
+		leftest_nodedup->left = treeRoot->left;
+		if(strcmp(key,parent_node->entry->key) < 0) {
+			parent_node->left = leftest_nodedup;
+		}
+		else {
+			parent_node->right = leftest_nodedup;
+		}
+
+		node_destroy(leftest_node);
+		return 0;
+
+	}
 }
 
 /* Função para adicionar um par chave-valor à árvore.
@@ -217,15 +260,15 @@ int node_del(struct tree_t *tree,struct node_t *treeRoot, char *key) {
  */
 char **node_getKeys(struct tree_t *tree,struct node_t *treeRoot, char **keys, int i){
 
-	if(tree == NULL || treeRoot->entry == NULL) {
+	if(tree == NULL || treeRoot == NULL || treeRoot->entry == NULL) {
 		return NULL;
 	}
 
 	if(i < tree->nrElements) {
 		keys[i] = malloc(strlen(treeRoot->entry->key) + 1);
 		strcpy(keys[i], treeRoot->entry->key);
-		keys = node_getKeys(tree, treeRoot->left, keys, i + 1);
-		keys = node_getKeys(tree, treeRoot->right, keys, i + 1);
+		node_getKeys(tree, treeRoot->left, keys, i + 1);
+		node_getKeys(tree, treeRoot->right, keys, i + 2);
 	}
 	return keys;
 }
@@ -240,6 +283,7 @@ char **node_getKeys(struct tree_t *tree,struct node_t *treeRoot, char **keys, in
  */
 void **node_getValues(struct tree_t *tree,struct node_t *treeRoot, void **values, int i){
 
+	//Falta testar
 	if(tree == NULL || treeRoot->entry == NULL) {
 		return NULL;
 	}
