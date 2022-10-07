@@ -24,7 +24,7 @@ int keyArray_to_buffer(char **keys, char **keys_buf){
 
     int totalSize = 0;
 
-    for(int i = 0; i < keys[i] != NULL; i++) {
+    for(int i = 0; keys[i] != NULL; i++) {
         int keySize = strlen(keys[i]) + 1;
         totalSize += (keySize + sizeof(int));
     }
