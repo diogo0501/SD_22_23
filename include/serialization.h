@@ -1,8 +1,8 @@
 #ifndef _SERIALIZATION_H
 #define _SERIALIZATION_H
 
-#include "../include/data.h"
-#include "../include/entry.h"
+#include "data.h"
+#include "entry.h"
 
 
 /* Serializa todas as keys presentes no array de strings keys
@@ -18,6 +18,6 @@ int keyArray_to_buffer(char **keys, char **keys_buf);
  * cujo espaco em memória deve ser reservado. Devolve NULL
  * em caso de erro.
  */
-char** buffer_to_keyArray(char *keys_buf, int keys_buf_size)
+char** buffer_to_keyArray(char *keys_buf, int keys_buf_size);
 
 #endif
