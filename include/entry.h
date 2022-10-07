@@ -1,7 +1,7 @@
 #ifndef _ENTRY_H
 #define _ENTRY_H /* Módulo entry */
 
-#include "../include/data.h"
+#include "data.h"
 
 /* Esta estrutura define o par {chave, valor} para a árvore
  */
