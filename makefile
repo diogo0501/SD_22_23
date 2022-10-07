@@ -14,7 +14,6 @@ serialization.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/serializ
 test_data.o = $(HEADERDIR)/data.h
 test_entry.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h
 test_tree.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/tree.h $(HEADERDIR)/tree-private.h $(HEADERDIR)/node-private.h
-#test_serialization.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/serialization.h
 
 all_objects: $(OBJECTS) test_data test_entry test_tree
 
@@ -28,9 +27,6 @@ test_entry: test_entry.o entry.o
 	$(CC) $(OBJECTDIR)/test_entry.o $(OBJECTDIR)/entry.o $(OBJECTDIR)/data.o -o $(BINARYDIR)/test_entry
 test_tree: test_tree.o tree.o entry.o data.o node-private.o
 	$(CC) $(OBJECTDIR)/test_tree.o $(OBJECTDIR)/tree.o $(OBJECTDIR)/entry.o $(OBJECTDIR)/data.o $(OBJECTDIR)/node-private.o -o $(BINARYDIR)/test_tree
-#test_serialization: $(OBJECTDIR)/test_serialization.o $(OBJECTDIR)/serialization.o $(OBJECTDIR)/entry.o $(OBJECTDIR)/data.o
-#	$(CC) $(OBJECTDIR)/test_serialization.o $(OBJECTDIR)/serialization.o $(OBJECTDIR)/entry.o $(OBJECTDIR)/data.o -o $(BINARYDIR)/test_serialization
-
 clean:
 	rm -f $(OBJECTFILES) $(BINARYDIR)/test_data $(BINARYDIR)/test_entry $(BINARYDIR)/test_tree
 #INCOMPLETO , falta tirar os comments referentes ao serialization
