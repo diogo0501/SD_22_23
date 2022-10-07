@@ -47,7 +47,6 @@ void node_destroy(struct node_t *treeRoot) {
 
 }
 
-
 int node_put(struct node_t *parent_node, struct node_t *node, struct entry_t *entry) {
 
 	if(entry == NULL) {
@@ -178,6 +177,7 @@ struct tuple_t *node_findLeftmostLeaf(struct node_t *parent_node , struct node_t
 	return node_findLeftmostLeaf(node,node->left);
 
 }
+
 /* Função para adicionar um par chave-valor à árvore.
  * Os dados de entrada desta função deverão ser copiados, ou seja, a
  * função vai *COPIAR* a key (string) e os dados para um novo espaço de
@@ -186,105 +186,146 @@ struct tuple_t *node_findLeftmostLeaf(struct node_t *parent_node , struct node_t
  * a necessária gestão da memória para armazenar os novos dados.
  * Retorna 0 (ok) ou -1 em caso de erro.
  */
-int node_del(struct node_t *parent_node,struct node_t *treeRoot, char *key) {
+int node_del(struct tree_t *tree , struct node_t *parent_node,struct node_t *treeRoot, char *key) {
 
 	if(treeRoot == NULL || treeRoot->entry == NULL) {
 		return -1;
 	}
 
 	if(strcmp(key,treeRoot->entry->key) < 0) {
-		return node_del(treeRoot, treeRoot->left,key);
+		return node_del(tree,treeRoot, treeRoot->left,key);
 	}
 
 	if(strcmp(key,treeRoot->entry->key) > 0){
-		return node_del(treeRoot, treeRoot->right,key);
+		return node_del(tree,treeRoot, treeRoot->right,key);
 	}
 
 	//Encontrou o node a eliminar
 	if(strcmp(key,treeRoot->entry->key) == 0) {
-
-		//Quando o nó é uma folha
-		if(treeRoot->right == NULL && treeRoot->left == NULL) {
-			if(strcmp(key,parent_node->entry->key) < 0) {
-				parent_node->left = NULL;
-			}
-			else {
-				parent_node->right = NULL;
-			}
-			node_destroy(treeRoot);
-			return 0;
-		}
-
-		//Quando o no so tem um filho
-		if(treeRoot->right == NULL || treeRoot->left == NULL) {
-			if(treeRoot->right != NULL) {
+		if(parent_node != NULL) {
+			//Quando o nó é uma folha
+			if(treeRoot->right == NULL && treeRoot->left == NULL) {
 				if(strcmp(key,parent_node->entry->key) < 0) {
-					parent_node->left = treeRoot->right;
+					parent_node->left = NULL;
+				}
+				else {
+					parent_node->right = NULL;
+				}
+				node_destroy(treeRoot);
+				return 0;
+			}
+
+			//Quando o no so tem um filho
+			if(treeRoot->right == NULL || treeRoot->left == NULL) {
+				if(treeRoot->right != NULL) {
+					if(strcmp(key,parent_node->entry->key) < 0) {
+						parent_node->left = treeRoot->right;
+						node_destroy(treeRoot);
+						return 0;
+					}
+					else {
+						parent_node->right = treeRoot->right;
+						node_destroy(treeRoot);
+						return 0;
+					}
+				}
+				if(strcmp(key,parent_node->entry->key) < 0) {
+					parent_node->left = treeRoot->left;
 					node_destroy(treeRoot);
 					return 0;
 				}
 				else {
-					parent_node->right = treeRoot->right;
+					parent_node->right = treeRoot->left;
 					node_destroy(treeRoot);
 					return 0;
 				}
 			}
-			if(strcmp(key,parent_node->entry->key) < 0) {
-				parent_node->left = treeRoot->left;
-				node_destroy(treeRoot);
-				return 0;
+
+			//Quando o no tem dois filhos
+
+			//Tenho que obter o pai deste no para de referencia lo
+			struct tuple_t *tuple = node_findLeftmostLeaf(NULL,treeRoot);
+			struct node_t *leftest_node = tuple->curr_node;
+
+			if(strcmp(leftest_node->entry->key,tuple->parent_node->entry->key) < 0) {
+				tuple->parent_node->left = NULL;
 			}
 			else {
-				parent_node->right = treeRoot->left;
+				tuple->parent_node->right = NULL;
+			}
+
+			leftest_node->right = treeRoot->right;
+			leftest_node->left = treeRoot->left;
+
+			memcpy(treeRoot,leftest_node,sizeof(struct node_t));
+			leftest_node = NULL;
+
+			if(strcmp(key,parent_node->entry->key) < 0) {
+				parent_node->left = treeRoot;
+			}
+			else {
+				parent_node->right = treeRoot;
+			}
+
+			node_destroy(treeRoot);
+
+			return 0;
+
+		}
+
+		else {
+			//Quando o nó é uma folha
+			if(treeRoot->right == NULL && treeRoot->left == NULL) {
+				tree->root = NULL;
 				node_destroy(treeRoot);
 				return 0;
 			}
+
+			//Quando tem apenas um filho
+			if(treeRoot->right == NULL || treeRoot->left == NULL) {
+				if(treeRoot->right != NULL) {
+					tree->root = treeRoot->right;
+					node_destroy(treeRoot);
+					return 0;
+				}
+				else {
+					tree->root = treeRoot->left;
+					node_destroy(treeRoot);
+					return 0;
+				}
+			}
+
+			struct tuple_t *tuple = node_findLeftmostLeaf(NULL,treeRoot);
+			struct node_t *leftest_node = tuple->curr_node;
+
+			if(strcmp(leftest_node->entry->key,tuple->parent_node->entry->key) < 0) {
+				tuple->parent_node->left = NULL;
+			}
+			else {
+				tuple->parent_node->right = NULL;
+			}
+
+			leftest_node->right = treeRoot->right;
+			leftest_node->left = treeRoot->left;
+
+			memcpy(treeRoot,leftest_node,sizeof(struct node_t));
+			leftest_node = NULL;
+
+			if(strcmp(key,parent_node->entry->key) < 0) {
+				tree->root = treeRoot;
+			}
+			else {
+				tree->root = treeRoot;
+			}
+
+			node_destroy(treeRoot);
+
+			return 0;
+
+
 		}
-
-		//Quando o no tem dois filhos
-
-		//Tenho que obter o pai deste no para de referencia lo
-		struct tuple_t *tuple = node_findLeftmostLeaf(NULL,treeRoot);
-		struct node_t *leftest_node = tuple->curr_node;
-
-		if(strcmp(leftest_node->entry->key,tuple->parent_node->entry->key) < 0) {
-			tuple->parent_node->left = NULL;
-		}
-		else {
-			tuple->parent_node->right = NULL;
-		}
-
-		//struct node_t *leftest_nodedup = malloc(sizeof(struct node_t));
-		//Falta args
-
-		leftest_node->right = treeRoot->right;
-		leftest_node->left = treeRoot->left;
-
-		memcpy(treeRoot,leftest_node,sizeof(struct node_t));
-		leftest_node = NULL;
-
-		//		if(strcmp(treeRoot->entry->key,treeRoot->right->entry->key) == 0) {
-		//			treeRoot->right = NULL;
-		//			node_destroy(treeRoot->right);
-		//		}
-		//
-		//		if(strcmp(treeRoot->entry->key,treeRoot->left->entry->key) == 0) {
-		//			treeRoot->left = NULL;
-		//			node_destroy(treeRoot->left);
-		//		}
-
-		if(strcmp(key,parent_node->entry->key) < 0) {
-			parent_node->left = treeRoot;
-		}
-		else {
-			parent_node->right = treeRoot;
-		}
-
-		node_destroy(treeRoot);
-
-		return 0;
-
 	}
+
 }
 
 /* Função para adicionar um par chave-valor à árvore.
