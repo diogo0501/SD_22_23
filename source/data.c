@@ -5,7 +5,7 @@ Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
 */
 
-#include "../include/data.h"
+#include "data.h"
 #include <stdlib.h>
 #include <string.h>
 
