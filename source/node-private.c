@@ -31,13 +31,16 @@ void node_destroy(struct node_t *treeRoot) {
 	if(treeRoot->entry == NULL) {
 		entry_destroy(treeRoot->entry);
 		free(treeRoot);
+		treeRoot = NULL;
 		return;
 	}
 
 	if(treeRoot->left == NULL && treeRoot->right == NULL) {
+		treeRoot = NULL;
 		free(treeRoot);
 		return;
 	}
+
 
 	node_destroy(treeRoot->left);
 	node_destroy(treeRoot->right);
@@ -137,7 +140,6 @@ struct entry_t *node_get(struct node_t *treeRoot, char *key) {
  */
 int node_calculateTreeHeight(struct node_t *treeRoot) {
 
-	//Nao esta a funcionar!!!
 	if(treeRoot == NULL) {
 		return 0;
 	}
@@ -152,24 +154,28 @@ int node_calculateTreeHeight(struct node_t *treeRoot) {
 
 }
 
-struct node_t *node_findLeftmostLeaf(struct node_t *node) {
+struct tuple_t *node_findLeftmostLeaf(struct node_t *parent_node , struct node_t *node) {
+
+	struct tuple_t *ret_val = malloc(sizeof(struct tuple_t));
 
 	if(node == NULL) {
 		return NULL;
 	}
 
 	if(node->left == NULL && node->right == NULL) {
-		return node;
+		ret_val->parent_node = parent_node;
+		ret_val->curr_node = node;
+		return ret_val;
 	}
 
 	if(node->left == NULL || node->right == NULL) {
 		if(node->left == NULL) {
-			return node->right;
+			return node_findLeftmostLeaf(node,node->right);
 		}
-		return node->left;
+		return node_findLeftmostLeaf(node,node->left);
 	}
 
-	return node_findLeftmostLeaf(node->left);
+	return node_findLeftmostLeaf(node,node->left);
 
 }
 /* Função para adicionar um par chave-valor à árvore.
@@ -199,6 +205,12 @@ int node_del(struct node_t *parent_node,struct node_t *treeRoot, char *key) {
 
 		//Quando o nó é uma folha
 		if(treeRoot->right == NULL && treeRoot->left == NULL) {
+			if(strcmp(key,parent_node->entry->key) < 0) {
+				parent_node->left = NULL;
+			}
+			else {
+				parent_node->right = NULL;
+			}
 			node_destroy(treeRoot);
 			return 0;
 		}
@@ -230,21 +242,46 @@ int node_del(struct node_t *parent_node,struct node_t *treeRoot, char *key) {
 		}
 
 		//Quando o no tem dois filhos
-		struct node_t *leftest_node = malloc(sizeof(struct node_t));
-		struct node_t *leftest_nodedup = malloc(sizeof(struct node_t));
-		//Falta args
-		leftest_node = node_findLeftmostLeaf(treeRoot);
-		leftest_nodedup = leftest_node;
-		leftest_nodedup->right = treeRoot->right;
-		leftest_nodedup->left = treeRoot->left;
-		if(strcmp(key,parent_node->entry->key) < 0) {
-			parent_node->left = leftest_nodedup;
+
+		//Tenho que obter o pai deste no para de referencia lo
+		struct tuple_t *tuple = node_findLeftmostLeaf(NULL,treeRoot);
+		struct node_t *leftest_node = tuple->curr_node;
+
+		if(strcmp(leftest_node->entry->key,tuple->parent_node->entry->key) < 0) {
+			tuple->parent_node->left = NULL;
 		}
 		else {
-			parent_node->right = leftest_nodedup;
+			tuple->parent_node->right = NULL;
 		}
 
-		node_destroy(leftest_node);
+		//struct node_t *leftest_nodedup = malloc(sizeof(struct node_t));
+		//Falta args
+
+		leftest_node->right = treeRoot->right;
+		leftest_node->left = treeRoot->left;
+
+		memcpy(treeRoot,leftest_node,sizeof(struct node_t));
+		leftest_node = NULL;
+
+		//		if(strcmp(treeRoot->entry->key,treeRoot->right->entry->key) == 0) {
+		//			treeRoot->right = NULL;
+		//			node_destroy(treeRoot->right);
+		//		}
+		//
+		//		if(strcmp(treeRoot->entry->key,treeRoot->left->entry->key) == 0) {
+		//			treeRoot->left = NULL;
+		//			node_destroy(treeRoot->left);
+		//		}
+
+		if(strcmp(key,parent_node->entry->key) < 0) {
+			parent_node->left = treeRoot;
+		}
+		else {
+			parent_node->right = treeRoot;
+		}
+
+		node_destroy(treeRoot);
+
 		return 0;
 
 	}
