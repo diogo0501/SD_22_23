@@ -29,9 +29,9 @@ int keyArray_to_buffer(char **keys, char **keys_buf){
         totalSize += (keySize + sizeof(int));
     }
 
-    char **keys_buf = malloc(totalSize);
+   keys_buf = malloc(totalSize);
 
-    for(int i = 0; i < keys[i] != NULL; i++) {
+    for(int i = 0; keys[i] != NULL; i++) {
         int keySize = strlen(keys[i]) + 1;
         memcpy(keys_buf[i], &keySize, sizeof(int));
         memcpy(keys_buf[i] + sizeof(int), &keys[i], keySize);
