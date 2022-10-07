@@ -1,3 +1,10 @@
+/**
+Grupo 47
+Diogo Fernandes, fc54458
+Gonçalo Lopes, fc56334
+Miguel Santos, fc54461
+ */
+
 #include "../include/serialization.h"
 #include <string.h>
 #include <stdlib.h>
