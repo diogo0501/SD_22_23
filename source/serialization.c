@@ -51,7 +51,7 @@ char** buffer_to_keyArray(char *keys_buf, int keys_buf_size){
         return NULL;
     }
 
-    char **keyArray = malloc(keys_buf_size);
+    char **keyArray;
 
     int i = 0;
     while(keys_buf_size != 0) {
@@ -63,6 +63,6 @@ char** buffer_to_keyArray(char *keys_buf, int keys_buf_size){
         free(keySize);
         i++;
     }
-    
+
     return keyArray;
 }
