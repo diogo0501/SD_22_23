@@ -8,10 +8,10 @@ Miguel Santos, fc54461
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include "../include/tree.h"
-#include "../include/tree-private.h"
-#include "../include/entry.h"
-#include "../include/node-private.h"
+#include "tree.h"
+#include "tree-private.h"
+#include "entry.h"
+#include "node-private.h"
 
 /* Função para criar uma nova árvore tree vazia.
  * Em caso de erro retorna NULL.

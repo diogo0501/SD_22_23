@@ -5,8 +5,8 @@ Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
  */
 
-#include "../include/entry.h"
-#include "../include/node-private.h"
+#include "entry.h"
+#include "node-private.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
