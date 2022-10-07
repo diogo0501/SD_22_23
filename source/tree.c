@@ -125,7 +125,7 @@ int tree_del(struct tree_t *tree, char *key) {
 		return -1;
 	}
 
-	int isDeleted = node_del(NULL,tree->root,key);
+	int isDeleted = node_del(tree,NULL,tree->root,key);
 
 	if(isDeleted == 0) {
 		tree->nrElements--;
@@ -155,10 +155,23 @@ char **tree_get_keys(struct tree_t *tree) {
 	if(tree == NULL) {
 		return NULL;
 	}
-	//Ordem lexicografica em faLta !!! Nao ha testes para este case
+	//Ordem lexicografica em faLta !!! Nao ha testes
 	char **keys = malloc(sizeof(char *) * (tree->nrElements + 1));
 	keys = node_getKeys(tree,tree->root,keys,0);
 	keys[tree->nrElements] = NULL;
+
+	int i,j;
+	char* temp;
+
+	for (i = 0; i < tree->nrElements - 2; i++) {
+		for (j = i+1; j < tree->nrElements - 1; j++) {
+			if (keys[i] > keys[j]) {
+				temp = keys[i];
+				keys[i] = keys[j];
+				keys[j] = temp;
+			}
+		}
+	}
 	return keys;
 }
 
