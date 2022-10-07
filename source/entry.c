@@ -5,8 +5,8 @@ Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
 */
 
-#include "../include/entry.h"
-#include "../include/data.h"
+#include "entry.h"
+#include "data.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -41,7 +41,7 @@ void entry_destroy(struct entry_t *entry) {
  * nova estrutura.
  */
 struct entry_t *entry_dup(struct entry_t *entry) {
-    char *dupedKey = malloc(strlen(entry->key));
+    char *dupedKey = malloc(strlen(entry->key) + 1);
     memcpy(dupedKey, entry->key, strlen(entry->key) + 1);
     struct data_t *dupedData = data_dup(entry->value);
     return entry_create(dupedKey, dupedData);
