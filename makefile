@@ -15,19 +15,25 @@ test_data.o = $(HEADERDIR)/data.h
 test_entry.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h
 test_tree.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/tree.h $(HEADERDIR)/tree-private.h $(HEADERDIR)/node-private.h
 
-all_objects: $(OBJECTS) test_data test_entry test_tree
+all_objects: $(OBJECTS) tree_client tree_server
 
 %.o: $(SOURCEDIR)/%.c $($@)
 	$(CC) -c $< -I $(HEADERDIR) -o $(OBJECTDIR)/$@
 
-#targets para gerar os executaveis para testagem
-test_data: test_data.o data.o
-	$(CC) $(OBJECTDIR)/test_data.o $(OBJECTDIR)/data.o -o $(BINARYDIR)/test_data
-test_entry: test_entry.o entry.o
-	$(CC) $(OBJECTDIR)/test_entry.o $(OBJECTDIR)/entry.o $(OBJECTDIR)/data.o -o $(BINARYDIR)/test_entry
-test_tree: test_tree.o tree.o entry.o data.o node-private.o
-	$(CC) $(OBJECTDIR)/test_tree.o $(OBJECTDIR)/tree.o $(OBJECTDIR)/entry.o $(OBJECTDIR)/data.o $(OBJECTDIR)/node-private.o -o $(BINARYDIR)/test_tree
-clean:
-	rm -f $(OBJECTFILES) $(BINARYDIR)/test_data $(BINARYDIR)/test_entry $(BINARYDIR)/test_tree
 
-#TODO TODAY
+client-lib.o: sdmessage.pb-c.o network_client.o client_stub.o
+	ld -r ./$(OBJECTDIR)/sdmessage.pb-c.o ./$(OBJECTDIR)/network_client.o ./$(OBJECTDIR)/client_stub.o -o ./lib/$@
+
+tree_server: $(OBJECTS) client-lib.o tree_client.o
+	$(CC) ./$(OBJECTDIR)/sdmessage.pb-c.o /usr/local/lib/libprotobuf-c.a ./$(OBJECTDIR)/tree_server.o ./$(OBJECTDIR)/network_server.o ./$(OBJECTDIR)/network_client.o ./$(OBJECTDIR)/tree_skel.o -o $(BINARYDIR)/tree_server
+
+tree_client: $(OBJECTS) network_server.o tree_skel.o tree_client.o
+	$(CC) /usr/local/lib/libprotobuf-c.a ./$(OBJECTDIR)/tree_client.o ./lib/client-lib.o -o $(BINARYDIR)/tree_client
+
+sdmessage.pb-c.c: sdmessage.proto
+	/usr/local/bin/protoc-c ./sdmessage.proto --c_out=./$(HEADERDIR)
+
+clean:
+	rm -f $(addprefix $(OBJECTDIR)/,$(OBJECTFILES)) lib/client_lib.o $(BINARYDIR)/tree_server $(BINARYDIR)/tree_client
+
+#FALTA ADICIONAR DEPENDENCIAS DOS .o DOS NOVOS FICHEIROS DESTA FASE
