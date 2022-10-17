@@ -29,3 +29,5 @@ test_tree: test_tree.o tree.o entry.o data.o node-private.o
 	$(CC) $(OBJECTDIR)/test_tree.o $(OBJECTDIR)/tree.o $(OBJECTDIR)/entry.o $(OBJECTDIR)/data.o $(OBJECTDIR)/node-private.o -o $(BINARYDIR)/test_tree
 clean:
 	rm -f $(OBJECTFILES) $(BINARYDIR)/test_data $(BINARYDIR)/test_entry $(BINARYDIR)/test_tree
+
+#TODO TODAY
