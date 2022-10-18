@@ -7,6 +7,8 @@ Miguel Santos, fc54461
 
 //TODO TOMORROW
 #include "network_client.h"
+#include "client_stub-private.h"
+
 
 /* Remote tree. A definir pelo grupo em client_stub-private.h
  */
@@ -18,7 +20,29 @@ struct rtree_t;
  */
 struct rtree_t *rtree_connect(const char *address_port){
 
-    struct rtree_t rtree = malloc(sizeof(struct rtree_t));
+    struct rtree_t *rtree = malloc(sizeof(struct rtree_t));
+
+    char *tok = strtok(address_port, ":");
+    if(tok == NULL) {
+        return NULL;
+    }
+
+    rtree->ip = tok;
+
+    tok = strtok(NULL, ":");
+    short port = tok;
+    if(port == NULL) {
+
+        return NULL;
+    }
+    rtree->port = atoi(port);
+
+    int conectionStatus = network_connect(rtree);
+
+    if(conectionStatus == -1) {
+        rtree_disconnect(rtree);
+        return NULL;
+    }
 
     return rtree; 
 
@@ -46,7 +70,7 @@ int rtree_disconnect(struct rtree_t *rtree) {
  */
 int rtree_put(struct rtree_t *rtree, struct entry_t *entry) {
 
-    if(rtree || key == NULL) {
+    if(rtree || entry == NULL) {
         return -1;
     }
 
@@ -132,7 +156,7 @@ int rtree_size(struct rtree_t *rtree) {
     message_t__init(&msg);
     msg.opcode = MESSAGE_T__OPCODE__OP_SIZE;
     msg.c_type = MESSAGE_T__C_TYPE__CT_NONE;
-    msg.data_size = 0;
+    msg.datalength = 0;
     
     MessageT *resp = network_send_receive(rtree, &msg);
 
@@ -141,8 +165,8 @@ int rtree_size(struct rtree_t *rtree) {
         return -1;
     }
 
-    int data_size = resp->data_size;
-    message_t__free_unpacked(response, NULL);
+    int data_size = resp->datalength;
+    message_t__free_unpacked(resp, NULL);
     return data_size;
 }
 
@@ -158,7 +182,7 @@ int rtree_height(struct rtree_t *rtree) {
     message_t__init(&msg);
     msg.opcode = MESSAGE_T__OPCODE__OP_HEIGHT;
     msg.c_type = MESSAGE_T__C_TYPE__CT_NONE;
-    msg.data_size = 0;
+    msg.datalength = 0;
     
     MessageT *resp = network_send_receive(rtree, &msg);
 
@@ -167,8 +191,8 @@ int rtree_height(struct rtree_t *rtree) {
         return -1;
     }
 
-    int data_size = resp->data_size;
-    message_t__free_unpacked(response, NULL);
+    int data_size = resp->datalength;
+    message_t__free_unpacked(resp, NULL);
     return data_size;
 }
 
