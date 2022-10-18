@@ -20,11 +20,12 @@ message message_t
                 CT_VALUE  	= 20;
                 CT_ENTRY  	= 30;
                 CT_KEYS   	= 40;
-                CT_VALUE  	= 50;
+                CT_VALUES  	= 50;
                 CT_RESULT 	= 60;
                 CT_NONE   	= 70;
         }
         C_type c_type = 2;
         bytes data = 3;
+        int32 dataLength = 4;
 
 };
