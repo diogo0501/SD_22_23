@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     signal(SIGPIPE, sig_handler);                                                       // o gnu do windows n esta a reconhecer o sig SIGPIPE
     signal(SIGINT, sig_handler);
     if(argc != 2) {
-        printf("Invalid number of arguments, try: ./table_client <address:port>");
+        printf("Invalid number of arguments, try: ./tree_client <address:port>");
     }
     port_address = malloc(50);
     strcpy(port_address, argv[1]);
