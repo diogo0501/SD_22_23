@@ -1,6 +1,6 @@
 syntax = "proto3";
 message message_t
- {
+{
         enum Opcode {
                 OP_BAD     	= 0;
                 OP_SIZE    	= 10;
@@ -24,8 +24,22 @@ message message_t
                 CT_RESULT 	= 60;
                 CT_NONE   	= 70;
         }
+
         C_type c_type = 2;
+
         bytes data = 3;
-        int32 dataLength = 4;
+
+        sint32 datalength = 4;
+
+        message Entry_t{
+                string key = 1;
+                bytes data = 2;
+        }
+
+        Entry_t entry = 5;
+
+        repeated string keys = 6;
+        
+        repeated bytes values = 7; 
 
 };
