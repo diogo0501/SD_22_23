@@ -15,13 +15,13 @@ serialization.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/serializ
 sdmessage.pb-c.o = $(HEADERDIR)/sdmessage.pb-c.h
 message-private.o = $(HEADERDIR)/message-private.h
 
-table_skel.o = $(HEADERDIR)/tree_skel.h
+tree_skel.o = $(HEADERDIR)/tree_skel.h
 network_server.o = $(HEADERDIR)/network_server.h $(HEADERDIR)/message-private.h 
 tree_server.o = $(HEADERDIR)/network_server.h
 
 client_stub.o = $(HEADERDIR)/client_stub.h $(HEADERDIR)/client_stub-private.h $(HEADERDIR)/network_client.h
 network_client.o = $(HEADERDIR)/network_client.h $(HEADERDIR)/client_stub-private.h $(HEADERDIR)/message-private.h
-tree_client.o = $(HEADERDIR)/client_stub.h
+tree_client.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/client_stub.h
 
 all_objects: tree_client tree_server
 
@@ -29,13 +29,13 @@ all_objects: tree_client tree_server
 	$(CC) -c $< -I $(HEADERDIR) -o $(OBJECTDIR)/$@
 
 client-lib.o: sdmessage.pb-c.o network_client.o client_stub.o
-	ld -r ./$(OBJECTDIR)/sdmessage.pb-c.o ./$(OBJECTDIR)/network_client.o ./$(OBJECTDIR)/client_stub.o -o ./lib/$@
+	ld -r ./object/sdmessage.pb-c.o ./object/network_client.o ./object/client_stub.o -o ./lib/$@
 
-tree_server: $(OBJECTS) client-lib.o tree_client.o
-	$(CC) ./$(OBJECTDIR)/sdmessage.pb-c.o /usr/local/lib/libprotobuf-c.a ./$(OBJECTDIR)/tree_server.o ./$(OBJECTDIR)/network_server.o ./$(OBJECTDIR)/network_client.o ./$(OBJECTDIR)/tree_skel.o -o $(BINARYDIR)/tree_server
+tree_server: $(OBJECTS) tree_server.o tree_skel.o network_server.o
+	$(CC) $(addprefix $(OBJECTDIR)/,$(OBJECTS)) ./object/sdmessage.pb-c.o /usr/local/lib/libprotobuf-c.a ./object/tree_server.o ./object/network_server.o ./object/network_client.o ./object/tree_skel.o -o $(BINARYDIR)/tree_server
 
-tree_client: $(OBJECTS) network_server.o tree_skel.o tree_client.o
-	$(CC) /usr/local/lib/libprotobuf-c.a ./$(OBJECTDIR)/tree_client.o ./lib/client-lib.o -o $(BINARYDIR)/tree_client
+tree_client: $(OBJECTS) tree_client.o client-lib.o
+	$(CC) $(addprefix $(OBJECTDIR)/,$(OBJECTS)) ./lib/client-lib.o object/tree_client.o /usr/local/lib/libprotobuf-c.a -o binary/tree_client
 
 sdmessage.pb-c.c: sdmessage.proto
 	/usr/local/bin/protoc-c ./sdmessage.proto --c_out=./$(HEADERDIR)
