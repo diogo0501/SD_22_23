@@ -65,7 +65,7 @@ int network_connect(struct rtree_t *rtree){
 struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t *msg){
    	int sockfd = rtree->sockfd;
     unsigned len;
-    len = message_t__get_packed_size(msg);
+    len = message_t__get_packed_size(msg->recv_msg);
     uint8_t *buf = malloc(len);
     if (buf == NULL)
     {
@@ -73,7 +73,7 @@ struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t 
         return NULL;
     }
 
-    message_t__pack(msg, buf);
+    message_t__pack(msg->recv_msg, buf);
     int nbytes;
 
     uint8_t *buf1 = malloc(len);
@@ -130,7 +130,9 @@ struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t 
         return NULL;
     }
     free(msgLen);
-    return recv_msg;
+    struct message_t *msg_wrapper;
+	msg_wrapper->recv_msg = recv_msg;
+    return msg_wrapper;
 
 }
 

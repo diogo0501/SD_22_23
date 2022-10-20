@@ -28,7 +28,6 @@ all_objects: tree_client tree_server
 %.o: $(SOURCEDIR)/%.c $($@)
 	$(CC) -c $< -I $(HEADERDIR) -o $(OBJECTDIR)/$@
 
-
 client-lib.o: sdmessage.pb-c.o network_client.o client_stub.o
 	ld -r ./$(OBJECTDIR)/sdmessage.pb-c.o ./$(OBJECTDIR)/network_client.o ./$(OBJECTDIR)/client_stub.o -o ./lib/$@
 
