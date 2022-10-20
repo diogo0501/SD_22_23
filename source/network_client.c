@@ -33,7 +33,7 @@ int network_connect(struct rtree_t *rtree){
 
 	struct sockaddr_in server;
 	int sockfd;
-	if(sockfd = socket(AF_INET, SOCK_STREAM, 0) < 0) {
+	if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("Couldnt create socket");
 		return -1;
 	}
@@ -43,7 +43,7 @@ int network_connect(struct rtree_t *rtree){
 
 	inet_pton(AF_INET, rtree->ip, &server.sin_addr);
 
-	if(connect(sockfd, (struct sockaddr *) &server, sizeof(server) < 0)) {
+	if(connect(sockfd, (struct sockaddr *) &server, sizeof(server)) < 0) {
 		perror("Couldnt connect to server");
 		close(sockfd);
 		return -1;
