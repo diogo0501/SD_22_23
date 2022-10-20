@@ -11,11 +11,19 @@ data.o = $(HEADERDIR)/data.h
 entry.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h
 tree.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/node-private.h $(HEADERDIR)/tree-private.h $(HEADERDIR)/tree.h
 serialization.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/serialization.h
-test_data.o = $(HEADERDIR)/data.h
-test_entry.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h
-test_tree.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/tree.h $(HEADERDIR)/tree-private.h $(HEADERDIR)/node-private.h
 
-all_objects: $(OBJECTS) tree_client tree_server
+sdmessage.pb-c.o = sdmessage.pb-c.h
+message-private.o = message-private.h
+
+table_skel.o = tree_skel.h
+network_server.o = network_server.h message-private.h 
+tree_server.o = network_server.h
+
+client_stub.o = client_stub.h client_stub-private.h network_client.h
+network_client.o = network_client.h client_stub-private.h message-private.h
+tree_client.o = client_stub.h
+
+all_objects: tree_client tree_server
 
 %.o: $(SOURCEDIR)/%.c $($@)
 	$(CC) -c $< -I $(HEADERDIR) -o $(OBJECTDIR)/$@
@@ -32,6 +40,9 @@ tree_client: $(OBJECTS) network_server.o tree_skel.o tree_client.o
 
 sdmessage.pb-c.c: sdmessage.proto
 	/usr/local/bin/protoc-c ./sdmessage.proto --c_out=./$(HEADERDIR)
+
+sdmessage.pb-c.o: sdmessage.pb-c.c $($@)
+	$(CC) -I include -o object/$@ -c ./include/$<
 
 clean:
 	rm -f $(addprefix $(OBJECTDIR)/,$(OBJECTFILES)) lib/client_lib.o $(BINARYDIR)/tree_server $(BINARYDIR)/tree_client

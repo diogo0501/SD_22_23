@@ -5,9 +5,11 @@ Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
 */
 
-//TODO TOMORROW
+#include "message-private.h"
 #include "network_client.h"
 #include "client_stub-private.h"
+#include <string.h>
+#include <stdlib.h>
 
 
 /* Remote tree. A definir pelo grupo em client_stub-private.h
@@ -22,7 +24,7 @@ struct rtree_t *rtree_connect(const char *address_port){
 
     struct rtree_t *rtree = malloc(sizeof(struct rtree_t));
 
-    char *tok = strtok(address_port, ":");
+    char *tok = strtok((char *)address_port, ":");
     if(tok == NULL) {
         return NULL;
     }
@@ -30,12 +32,12 @@ struct rtree_t *rtree_connect(const char *address_port){
     rtree->ip = tok;
 
     tok = strtok(NULL, ":");
-    short port = tok;
-    if(port == NULL) {
+
+    if(tok == NULL) {
 
         return NULL;
     }
-    rtree->port = atoi(port);
+    rtree->port = atoi(tok);
 
     int conectionStatus = network_connect(rtree);
 
@@ -80,11 +82,10 @@ int rtree_put(struct rtree_t *rtree, struct entry_t *entry) {
     msg.c_type = MESSAGE_T__C_TYPE__CT_ENTRY;
 
     msg.entry = malloc(sizeof(MessageT__EntryT));
-    message_t__entry__init(msg.entry);
+    message_t__entry_t__init(msg.entry);
     msg.entry->key = entry->key;
     msg.entry->data.data = (uint8_t *)entry->value->data;
     msg.entry->data.len = entry->value->datasize;
-
     MessageT *resp = network_send_receive(rtree, &msg);
     if(resp == NULL) {
         message_t__free_unpacked(resp, NULL);
@@ -106,7 +107,7 @@ int rtree_put(struct rtree_t *rtree, struct entry_t *entry) {
 struct data_t *rtree_get(struct rtree_t *rtree, char *key) {
 
     if(rtree || key == NULL) {
-        return -1;
+        return NULL;
     }
 
 
@@ -244,7 +245,7 @@ int rtree_height(struct rtree_t *rtree) {
 char **rtree_get_keys(struct rtree_t *rtree) {
 
     if(rtree == NULL) {
-        return -1;
+        return NULL;
     }
 
     MessageT msg;
@@ -286,7 +287,7 @@ char **rtree_get_keys(struct rtree_t *rtree) {
 void **rtree_get_values(struct rtree_t *rtree) {
 
     if(rtree == NULL) {
-        return -1;
+        return NULL;
     }
 
     MessageT msg;
@@ -303,11 +304,11 @@ void **rtree_get_values(struct rtree_t *rtree) {
 
     if(resp->c_type == MESSAGE_T__C_TYPE__CT_VALUES || resp->opcode == MESSAGE_T__OPCODE__OP_GETVALUES + 1) {
     int nrValues = resp->n_values;
-    char **values = malloc((nrValues + 1) * sizeof(char *));
+    void **values = malloc((nrValues + 1) * sizeof(void *));
 
     for (int i = 0; i < nrValues; i++) {
-        values[i] = malloc(strlen(resp->values[i]) + 1);
-        strcpy(values[i], resp->values[i]);
+        values[i] = malloc(sizeof(void*));
+        memcpy(values[i], resp->values[i].data, sizeof(void *));
     }
 
     values[nrValues] = NULL;

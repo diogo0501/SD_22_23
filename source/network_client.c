@@ -5,12 +5,17 @@ Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
 */
 
+#include "message-private.h"
 #include "client_stub-private.h"
 #include "network_client.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <string.h>
+#include <unistd.h>
 
 /* Esta função deve:
  * - Obter o endereço do servidor (struct sockaddr_in) a base da
@@ -97,7 +102,7 @@ struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t 
 
     uint8_t *resp = malloc(2048);		//valor arbitrario
     unsigned *msgLen = malloc(sizeof(unsigned));
-    if ((nbytes = receive_all(sockfd, (uint8_t *)msgLen, sizeof(unsigned))) == -1)
+    if ((nbytes = recv_all(sockfd, (uint8_t *)msgLen, sizeof(unsigned))) == -1)
     {
         perror("Couldnt receive data from the server");
         close(sockfd);
@@ -106,7 +111,7 @@ struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t 
         return NULL;
     };
     *msgLen = ntohl(*msgLen);
-    if (*msgLen > 0 && (nbytes = receive_all(sockfd, resp, *msgLen)) == -1)
+    if (*msgLen > 0 && (nbytes = recv_all(sockfd, resp, *msgLen)) == -1)
     {
         perror("Couldnt receive data from the server");
         close(sockfd);
