@@ -5,6 +5,8 @@ Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
 */
 
+#include "data.h"
+#include "entry.h"
 #include "client_stub.h"
 #include <signal.h>
 #include <stdlib.h>
@@ -15,7 +17,7 @@ Miguel Santos, fc54461
 struct rtree_t *rtree = NULL;
 char *port_address = NULL;
 
-int sig_handler() {
+void sig_handler(int signum) {
     rtree_disconnect(rtree);
     free(port_address);
     exit(-1);
@@ -111,7 +113,7 @@ int main(int argc, char **argv) {
                 }
                 free(keys);
             }  else if(tok != NULL & strcmp(tok, "getvalues") == 0) {
-                char **values = rtree_get_values(rtree);
+                void **values = rtree_get_values(rtree);
                 int i = 0;
                 while(values[i] != NULL) {
                     printf("%s", (char*) values[i]);

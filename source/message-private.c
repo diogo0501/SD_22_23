@@ -12,6 +12,9 @@ Miguel Santos, fc54461
 #include <sys/types.h>
 #include <sys/socket.h>
 
+/* 
+ * TODO
+ */
 int send_all(int sock, uint8_t *buf, int len) {
     char *ptr = (char *)buf;
     int total = 0;
@@ -33,6 +36,9 @@ int send_all(int sock, uint8_t *buf, int len) {
     return n == -1 ? -1 : total; //Retorna a totalidade dos bytes enviados
 }
 
+/* 
+ * TODO
+ */
 int recv_all(int sock, uint8_t* buf, unsigned len) {
     char *ptr = (char *)buf;
     int total = 0;

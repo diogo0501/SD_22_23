@@ -5,23 +5,23 @@ HEADERDIR = include
 BINARYDIR = binary
 SOURCEFILES = $(wildcard $(SOURCEDIR)/*.c)										#lista de todos os .c na pasta source
 OBJECTFILES = $(patsubst $(SOURCEDIR)/%.c, $(OBJECTDIR)/%.o, $(SOURCEFILES))	#substituir os nomes dos .c para .o
-OBJECTS = data.o entry.o node-private.o tree.o serialization.o
+OBJECTS = data.o entry.o node-private.o tree.o message-private.o serialization.o
 
 data.o = $(HEADERDIR)/data.h
 entry.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h
 tree.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/node-private.h $(HEADERDIR)/tree-private.h $(HEADERDIR)/tree.h
 serialization.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/serialization.h
 
-sdmessage.pb-c.o = sdmessage.pb-c.h
-message-private.o = message-private.h
+sdmessage.pb-c.o = $(HEADERDIR)/sdmessage.pb-c.h
+message-private.o = $(HEADERDIR)/message-private.h
 
-table_skel.o = tree_skel.h
-network_server.o = network_server.h message-private.h 
-tree_server.o = network_server.h
+table_skel.o = $(HEADERDIR)/tree_skel.h
+network_server.o = $(HEADERDIR)/network_server.h $(HEADERDIR)/message-private.h 
+tree_server.o = $(HEADERDIR)/network_server.h
 
-client_stub.o = client_stub.h client_stub-private.h network_client.h
-network_client.o = network_client.h client_stub-private.h message-private.h
-tree_client.o = client_stub.h
+client_stub.o = $(HEADERDIR)/client_stub.h $(HEADERDIR)/client_stub-private.h $(HEADERDIR)/network_client.h
+network_client.o = $(HEADERDIR)/network_client.h $(HEADERDIR)/client_stub-private.h $(HEADERDIR)/message-private.h
+tree_client.o = $(HEADERDIR)/client_stub.h
 
 all_objects: tree_client tree_server
 
