@@ -8,6 +8,7 @@ Miguel Santos, fc54461
 #include "data.h"
 #include "entry.h"
 #include "client_stub.h"
+#include "network_client.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -37,6 +38,7 @@ int main(int argc, char **argv) {
     rtree = rtree_connect(port_address);
 
     while(1) {
+
         if(fgets(linha, 1000, stdin) != NULL) {
             char *op_args = malloc(strlen(linha) + 1);
             strcpy(op_args, linha);
@@ -131,6 +133,8 @@ int main(int argc, char **argv) {
                 printf("Invalid operation");
             }
             free(op_args);
+            network_close(rtree);
+            network_connect(rtree);
         }
     }
     free(port_address);

@@ -101,6 +101,7 @@ int network_main_loop(int listening_socket){
 		
 		free(recv_msg_str);	
 
+		close(connsockfd);
 	}
 
 	return 0;
