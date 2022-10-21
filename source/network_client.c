@@ -130,7 +130,7 @@ struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t 
         return NULL;
     }
     free(msgLen);
-    struct message_t *msg_wrapper;
+    struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = recv_msg;
     return msg_wrapper;
 

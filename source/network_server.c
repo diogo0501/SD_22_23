@@ -100,8 +100,7 @@ int network_main_loop(int listening_socket){
 		}
 		
 		free(recv_msg_str);	
-		
-		close(connsockfd);
+
 	}
 
 	return 0;
@@ -109,7 +108,7 @@ int network_main_loop(int listening_socket){
 
 struct message_t *network_receive(int client_socket) {
 	
-	struct message_t *msg_wrapper;
+	struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	int nbytes;
     unsigned len = 0;
 
@@ -168,9 +167,9 @@ int network_send(int client_socket, struct message_t *msg) {
 
     message_t__pack(recv_msg, buf);
 
-    // buf1 = malloc(len);
-    // lenNet = htonl(len);
-    // memcpy(buf1, &lenNet, sizeof(unsigned));
+    buf1 = malloc(len);
+    lenNet = htonl(len);
+    memcpy(buf1, &lenNet, sizeof(unsigned));
 
     if ((nbytes = send_all(client_socket, buf1, sizeof(unsigned))) == -1) {
         perror("Error on sending data to client\n");
@@ -180,18 +179,18 @@ int network_send(int client_socket, struct message_t *msg) {
         return -1;
     }
 
-    // if ((nbytes = send_all(client_socket, buf, len)) == -1) {
-    //     perror("Error on sending data to client\n");
-    //     message_t__free_unpacked(recv_msg, NULL);
-    //     free(buf);
-    //     free(buf1);
-    //     return -1;
-    // }
+     if ((nbytes = send_all(client_socket, buf, len)) == -1) {
+         perror("Error on sending data to client\n");
+         message_t__free_unpacked(recv_msg, NULL);
+         free(buf);
+         free(buf1);
+         return -1;
+     }
 
     message_t__free_unpacked(recv_msg, NULL);
 
     free(buf);
-    // free(buf1);
+    free(buf1);
 
     return 0;
 }

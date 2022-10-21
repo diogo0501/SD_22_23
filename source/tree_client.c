@@ -96,9 +96,9 @@ int main(int argc, char **argv) {
                     printf("Invalid input format required to execute operation 'del'\n");
                 }
             }  else if(tok != NULL & strcmp(tok, "size") == 0) {
-                printf("Tree with size: %d", rtree_size(rtree));
+                printf("Tree with size: %d\n", rtree_size(rtree));
             }  else if(tok != NULL & strcmp(tok, "height") == 0) {
-                printf("Tree with height: %d", rtree_height(rtree));
+                printf("Tree with height: %d\n", rtree_height(rtree));
             }  else if(tok != NULL & strcmp(tok, "getkeys") == 0) {
                 char **keys = rtree_get_keys(rtree);
                 int i = 0;

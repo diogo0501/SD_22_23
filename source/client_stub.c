@@ -7,6 +7,7 @@ Miguel Santos, fc54461
 
 #include "message-private.h"
 #include "network_client.h"
+#include "sdmessage.pb-c.h"
 #include "client_stub-private.h"
 #include <string.h>
 #include <stdlib.h>
@@ -76,7 +77,7 @@ int rtree_put(struct rtree_t *rtree, struct entry_t *entry) {
         return -1;
     }
 
-    MessageT *msg;
+    MessageT *msg = malloc(sizeof(MessageT));
     message_t__init(msg);
     msg->opcode = MESSAGE_T__OPCODE__OP_PUT;
     msg->c_type = MESSAGE_T__C_TYPE__CT_ENTRY;
@@ -194,7 +195,7 @@ int rtree_size(struct rtree_t *rtree) {
         return -1;
     }
 
-    MessageT *msg;
+    MessageT *msg = malloc(sizeof(MessageT));
     message_t__init(msg);
     msg->opcode = MESSAGE_T__OPCODE__OP_SIZE;
     msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
@@ -227,17 +228,17 @@ int rtree_height(struct rtree_t *rtree) {
         return -1;
     }
 
-    MessageT *msg;
+    MessageT *msg = malloc(sizeof(MessageT));
     message_t__init(msg);
     msg->opcode = MESSAGE_T__OPCODE__OP_HEIGHT;
     msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
     msg->datalength = 0;
     
-    struct message_t *msg_wrapper;
+    struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
     struct message_t *resp = network_send_receive(rtree, msg_wrapper);
 
-    if(resp->recv_msg == NULL) {
+    if(resp == NULL || resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
         return -1;
     }
