@@ -115,7 +115,6 @@ struct data_t *rtree_get(struct rtree_t *rtree, char *key) {
         return NULL;
     }
 
-
     MessageT *msg = malloc(sizeof(MessageT));
     message_t__init(msg);
     msg->opcode = MESSAGE_T__OPCODE__OP_GET;
@@ -126,19 +125,22 @@ struct data_t *rtree_get(struct rtree_t *rtree, char *key) {
 
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
-
     struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+
     if(resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
         return NULL;
     }
 
     if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_VALUE || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_GET + 1) {
+        
         int data_size = resp->recv_msg->data.len;
+
         if (data_size == 0){
             message_t__free_unpacked(resp->recv_msg, NULL);
             return NULL;
         }
+
         char *value = malloc(data_size + 1);
         memcpy(value, resp->recv_msg->data.data, data_size);
         struct data_t *data = data_create2(data_size, value);
@@ -173,6 +175,7 @@ int rtree_del(struct rtree_t *rtree, char *key) {
 	msg_wrapper->recv_msg = msg;
 
     struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+
     if(resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
         return -1;
@@ -270,25 +273,25 @@ char **rtree_get_keys(struct rtree_t *rtree) {
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
     struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+
     if(resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
         return NULL;
     }
 
     if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_KEYS || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_GETKEYS + 1) {
-    int nrKeys = resp->recv_msg->n_keys;
-    char **keys = malloc((nrKeys + 1) * sizeof(char *));
+        int nrKeys = resp->recv_msg->n_keys;
+        char **keys = malloc((nrKeys + 1) * sizeof(char *));
 
-    for (int i = 0; i < nrKeys; i++) {
-        keys[i] = malloc(strlen(resp->recv_msg->keys[i]) + 1);
-        strcpy(keys[i], resp->recv_msg->keys[i]);
-    }
+        for (int i = 0; i < nrKeys; i++) {
+            keys[i] = malloc(strlen(resp->recv_msg->keys[i]) + 1);
+            strcpy(keys[i], resp->recv_msg->keys[i]);
+        }
 
-    keys[nrKeys] = NULL;
-    message_t__free_unpacked(resp->recv_msg, NULL);
+        keys[nrKeys] = NULL;
+        message_t__free_unpacked(resp->recv_msg, NULL);
 
-    return keys;
-
+        return keys;
     } else {
         message_t__free_unpacked(resp->recv_msg, NULL);
         return NULL;
@@ -312,25 +315,25 @@ void **rtree_get_values(struct rtree_t *rtree) {
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
     struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+
     if(resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
         return NULL;
     }
 
     if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_VALUES || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_GETVALUES + 1) {
-    int nrValues = resp->recv_msg->n_values;
-    void **values = malloc((nrValues + 1) * sizeof(void *));
+        int nrValues = resp->recv_msg->n_values;
+        void **values = malloc((nrValues + 1) * sizeof(void *));
 
-    for (int i = 0; i < nrValues; i++) {
-        values[i] = malloc(sizeof(void*));
-        memcpy(values[i], resp->recv_msg->values[i].data, sizeof(void *));
-    }
+        for (int i = 0; i < nrValues; i++) {
+            values[i] = malloc(sizeof(void*));
+            memcpy(values[i], resp->recv_msg->values[i].data, sizeof(void *));
+        }
 
-    values[nrValues] = NULL;
-    message_t__free_unpacked(resp->recv_msg, NULL);
+        values[nrValues] = NULL;
+        message_t__free_unpacked(resp->recv_msg, NULL);
 
-    return values;
-    
+        return values;
     } else {
         message_t__free_unpacked(resp->recv_msg, NULL);
         return NULL;

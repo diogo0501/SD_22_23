@@ -3,17 +3,17 @@ OBJECTDIR = object
 SOURCEDIR = source
 HEADERDIR = include
 BINARYDIR = binary
+LIBDIR = lib
 SOURCEFILES = $(wildcard $(SOURCEDIR)/*.c)										#lista de todos os .c na pasta source
 OBJECTFILES = $(patsubst $(SOURCEDIR)/%.c, $(OBJECTDIR)/%.o, $(SOURCEFILES))	#substituir os nomes dos .c para .o
-OBJECTS = data.o entry.o node-private.o tree.o message-private.o serialization.o
+BASE_OBJECTS = data.o entry.o node-private.o tree.o message-private.o serialization.o
 
 data.o = $(HEADERDIR)/data.h
 entry.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h
 tree.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/node-private.h $(HEADERDIR)/tree-private.h $(HEADERDIR)/tree.h
 serialization.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/serialization.h
-
-sdmessage.pb-c.o = $(HEADERDIR)/sdmessage.pb-c.h
 message-private.o = $(HEADERDIR)/message-private.h
+sdmessage.pb-c.o = $(HEADERDIR)/sdmessage.pb-c.h
 
 tree_skel.o = $(HEADERDIR)/tree_skel.h
 network_server.o = $(HEADERDIR)/network_server.h $(HEADERDIR)/message-private.h 
@@ -28,22 +28,21 @@ all_objects: tree_client tree_server
 %.o: $(SOURCEDIR)/%.c $($@)
 	$(CC) -g -c $< -I $(HEADERDIR) -o $(OBJECTDIR)/$@
 
-client-lib.o: sdmessage.pb-c.o network_client.o client_stub.o
-	ld -r ./object/sdmessage.pb-c.o ./object/network_client.o ./object/client_stub.o -o ./lib/$@
-
-tree_server: $(OBJECTS) tree_server.o tree_skel.o network_server.o
-	$(CC) -g $(addprefix $(OBJECTDIR)/,$(OBJECTS)) ./object/sdmessage.pb-c.o /usr/local/lib/libprotobuf-c.a ./object/tree_server.o ./object/network_server.o ./object/network_client.o ./object/tree_skel.o -o $(BINARYDIR)/tree_server
-
-tree_client: $(OBJECTS) tree_client.o client-lib.o
-	$(CC) -g $(addprefix $(OBJECTDIR)/,$(OBJECTS)) ./lib/client-lib.o object/tree_client.o /usr/local/lib/libprotobuf-c.a -o binary/tree_client
+# target necessario pois o target sdmessage.pb-c.c coloca o .c e .h do sdmessage.pb-c na mesma folder
+sdmessage.pb-c.o: sdmessage.pb-c.c $($@)
+	$(CC) -g -c $(HEADERDIR)/$< -I $(HEADERDIR) -o $(OBJECTDIR)/$@
 
 sdmessage.pb-c.c: sdmessage.proto
 	/usr/local/bin/protoc-c ./sdmessage.proto --c_out=./$(HEADERDIR)
 
-sdmessage.pb-c.o: sdmessage.pb-c.c $($@)
-	$(CC) -g -I include -o object/$@ -c ./include/$<
+client-lib.o: client_stub.o network_client.o sdmessage.pb-c.o
+	ld -r $(OBJECTDIR)/client_stub.o $(OBJECTDIR)/network_client.o $(OBJECTDIR)/sdmessage.pb-c.o -o $(LIBDIR)/$@
+
+tree_server: $(BASE_OBJECTS) tree_skel.o network_server.o tree_server.o
+	$(CC) -g $(addprefix $(OBJECTDIR)/,$(BASE_OBJECTS)) $(OBJECTDIR)/tree_server.o $(OBJECTDIR)/sdmessage.pb-c.o /usr/local/lib/libprotobuf-c.a $(OBJECTDIR)/network_server.o $(OBJECTDIR)/network_client.o $(OBJECTDIR)/tree_skel.o -o $(BINARYDIR)/tree_server
+
+tree_client: $(BASE_OBJECTS) client-lib.o tree_client.o
+	$(CC) -g $(addprefix $(OBJECTDIR)/,$(BASE_OBJECTS)) $(OBJECTDIR)/tree_client.o $(LIBDIR)/client-lib.o /usr/local/lib/libprotobuf-c.a -o $(BINARYDIR)/tree_client
 
 clean:
-	rm -f $(addprefix $(OBJECTDIR)/,$(OBJECTFILES)) lib/client_lib.o $(BINARYDIR)/tree_server $(BINARYDIR)/tree_client
-
-#FALTA ADICIONAR DEPENDENCIAS DOS .o DOS NOVOS FICHEIROS DESTA FASE
+	rm -f $(OBJECTFILES) $(OBJECTDIR)/sdmessage.pb-c.o $(LIBDIR)/client-lib.o $(BINARYDIR)/tree_server $(BINARYDIR)/tree_client

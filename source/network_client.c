@@ -63,24 +63,24 @@ int network_connect(struct rtree_t *rtree){
  * - Retornar a mensagem de-serializada ou NULL em caso de erro.
  */
 struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t *msg){
+
    	int sockfd = rtree->sockfd;
     unsigned len;
     len = message_t__get_packed_size(msg->recv_msg);
     uint8_t *buf = malloc(len);
-    if (buf == NULL)
-    {
+
+    if (buf == NULL) {
         close(sockfd);
         return NULL;
     }
 
     message_t__pack(msg->recv_msg, buf);
     int nbytes;
-
     uint8_t *buf1 = malloc(len);
     unsigned lenNet = htonl(len);
     memcpy(buf1, &lenNet, sizeof(unsigned));
-    if ((nbytes = send_all(rtree->sockfd, buf1, sizeof(unsigned))) == -1)
-    {
+    
+    if((nbytes = send_all(rtree->sockfd, buf1, sizeof(unsigned))) == -1) {
         perror("Couldnt send data to the server");
         close(rtree->sockfd);
         free(buf);
@@ -88,52 +88,54 @@ struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t 
         return 0;
     }
 
-    if ((nbytes = send_all(sockfd, buf, len)) == -1)
-    {
+    if((nbytes = send_all(sockfd, buf, len)) == -1) {
         perror("Couldnt send data to the server");
         close(sockfd);
         free(buf);
         free(buf1);
         return NULL;
     }
+
     free(buf);
     free(buf1);
 
-
     uint8_t *resp = malloc(2048);		//valor arbitrario
     unsigned *msgLen = malloc(sizeof(unsigned));
-    if ((nbytes = recv_all(sockfd, (uint8_t *)msgLen, sizeof(unsigned))) == -1)
-    {
+
+    if((nbytes = recv_all(sockfd, (uint8_t *)msgLen, sizeof(unsigned))) == -1) {
         perror("Couldnt receive data from the server");
         close(sockfd);
         free(resp);
         free(msgLen);
         return NULL;
-    };
+    }
+
     *msgLen = ntohl(*msgLen);
-    if (*msgLen > 0 && (nbytes = recv_all(sockfd, resp, *msgLen)) == -1)
-    {
+
+    if(*msgLen > 0 && (nbytes = recv_all(sockfd, resp, *msgLen)) == -1) {
         perror("Couldnt receive data from the server");
         close(sockfd);
         free(resp);
         free(msgLen);
         return NULL;
-    };
+    }
+
     MessageT *recv_msg = message_t__unpack(NULL, nbytes, resp);
     free(resp);
-    if (recv_msg == NULL)
-    {
+
+    if (recv_msg == NULL) {
         message_t__free_unpacked(recv_msg, NULL);
         fprintf(stdout, "error unpacking message\n");
         close(sockfd);
         free(msgLen);
         return NULL;
     }
+
     free(msgLen);
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = recv_msg;
-    return msg_wrapper;
 
+    return msg_wrapper;
 }
 
 /* A função network_close() fecha a ligação estabelecida por
