@@ -69,8 +69,9 @@ int main(int argc, char **argv) {
 
 							char *str = malloc(strlen(tok) + 1);
 							strcpy(str, tok);
+							//printf("%s\n",str);
 
-							struct data_t *data = data_create2(strlen(str) + 1, str);
+							struct data_t *data = data_create2(strlen(str) + 1, (void*)str);
 							struct entry_t *entry = entry_create(entry_key, data);
 
 							if(rtree_put(rtree, entry) != 0) {
@@ -148,12 +149,7 @@ int main(int argc, char **argv) {
 						int i = 0;
 
 						while(keys[i] != NULL) {
-							printf("%s", keys[i]);
-							if(keys[i + 1] == NULL) {
-								printf(".\n");
-							} else {
-								printf("/");
-							}
+							printf("Key : %s\n", keys[i]);
 							i++;
 						}
 					}
@@ -169,12 +165,7 @@ int main(int argc, char **argv) {
 					}
 					else {
 						while(values[i] != NULL) {
-							printf("%s", (char*) values[i]);
-							if(values[i + 1] == NULL) {
-								printf(".\n");
-							} else {
-								printf("/");
-							}
+							printf("Value : %s\n",(char*) values[i]);
 							i++;
 						}
 					}

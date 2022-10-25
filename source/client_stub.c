@@ -9,6 +9,7 @@ Miguel Santos, fc54461
 #include "network_client.h"
 #include "sdmessage.pb-c.h"
 #include "client_stub-private.h"
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -332,11 +333,11 @@ void **rtree_get_values(struct rtree_t *rtree) {
 
     if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_VALUES || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_GETVALUES + 1) {
         int nrValues = resp->recv_msg->n_values;
-        void **values = malloc((nrValues + 1) * sizeof(void *));
+        void **values = (void**)malloc((nrValues + 1) * sizeof(void *));
 
         for (int i = 0; i < nrValues; i++) {
-            values[i] = malloc(sizeof(void*));
-            memcpy(values[i], (void*)resp->recv_msg->values[i].data, sizeof(void *));
+            values[i] = (void*)malloc(resp->recv_msg->values[i].len);
+            values[i] = (void*)resp->recv_msg->values[i].data;
         }
 
         values[nrValues] = NULL;

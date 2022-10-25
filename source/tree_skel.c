@@ -168,6 +168,11 @@ int invoke(struct message_t *msg) {
 
 		void **values = tree_get_values(tree);
 
+		for(int i = 0; i < treesize;i++) {
+			printf("%s\n",(char*)values[i]);
+			printf("/");
+		}
+
 		if(treesize == 0) {
 			netmsg->values = NULL;
 			netmsg->n_values = treesize;
@@ -179,11 +184,10 @@ int invoke(struct message_t *msg) {
 
 		}
 		//printf("Values gathered\n");
-		netmsg->values = malloc(sizeof(values));
+		netmsg->values = malloc(sizeof(ProtobufCBinaryData) * treesize);
 		for(int i = 0; i < treesize; i++) {
-			printf("%s/n",(char*)values[i]);
-			netmsg->values[i].data = (uint8_t *) values[i];
-			netmsg->values[i].len = treesize;
+			netmsg->values[i].data = (uint8_t *)values[i];
+			netmsg->values[i].len = sizeof(values[i]);
 		}
 		netmsg->n_values = treesize;
 
