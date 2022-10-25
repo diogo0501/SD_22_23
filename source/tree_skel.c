@@ -8,9 +8,9 @@ Miguel Santos, fc54461
 #include "sdmessage.pb-c.h"
 #include "message-private.h"
 #include "tree_skel.h"
-#include "tree.h"
 #include "entry.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 struct tree_t *tree;
 
@@ -59,6 +59,8 @@ int invoke(struct message_t *msg) {
 
 	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_DEL && netmsg->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
 
+		int size = tree_size(tree);
+
 		int del = tree_del(tree, (char*) netmsg->data.data);
 
 		if(del == -1) {
@@ -105,9 +107,9 @@ int invoke(struct message_t *msg) {
 			return -1;
 		}
 
-		struct data_t *temp = data_create2(netmsg->entry->data.len, netmsg->entry->data.data);
+		struct data_t *temp = data_create2(netmsg->entry->data.len, (void*)netmsg->entry->data.data);
 
-		struct data_t *temp1 = data_create2(netmsg->entry->data.len, netmsg->entry->data.data);
+		struct data_t *temp1 = data_create2(netmsg->entry->data.len, (void*)netmsg->entry->data.data);
 
 		struct entry_t *entry = entry_create(netmsg->entry->key, temp1);
 
@@ -177,9 +179,12 @@ int invoke(struct message_t *msg) {
 
 		}
 		//printf("Values gathered\n");
-		netmsg->values = malloc(sizeof(ProtobufCBinaryData*));
-		netmsg->values->data = (uint8_t *) *values;
-		netmsg->values->len = treesize;
+		netmsg->values = malloc(sizeof(values));
+		for(int i = 0; i < treesize; i++) {
+			printf("%s/n",(char*)values[i]);
+			netmsg->values[i].data = (uint8_t *) values[i];
+			netmsg->values[i].len = treesize;
+		}
 		netmsg->n_values = treesize;
 
 		return 0;
