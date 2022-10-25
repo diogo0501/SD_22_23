@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
 	rtree = rtree_connect(port_address);
 
 	while(1) {
-		printf(">");
+		printf("> ");
 		if(fgets(linha, 1000, stdin) != NULL) {
 
 			char *op_args = malloc(strlen(linha) + 1);
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
 
 					char *entry_key = malloc(strlen(tok) + 1);
 					strcpy(entry_key, tok);
-					tok = strtok(NULL, " ");
+					tok = strtok(NULL, "");
 
 					if(tok != NULL) {
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 					if(data == NULL) {
 						printf("Couldnt get data with given key\n");
 					} else {
-						printf("Got data: %s with size: %d\n", (char*) data->data, data->datasize);
+						printf("Data : %s\n", (char*) data->data);
 						data_destroy(data);
 					}
 
