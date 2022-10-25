@@ -59,6 +59,10 @@ int network_server_init(short port){
 
 int network_main_loop(int listening_socket){
 
+	signal(SIGABRT, (sig_t)network_server_close);
+	signal(SIGTSTP, (sig_t)network_server_close);
+	signal(SIGSEGV, (sig_t)network_server_close);
+	signal(SIGINT, (sig_t)network_server_close);
 	signal(SIGPIPE, SIG_IGN);
 
 	int connsockfd;

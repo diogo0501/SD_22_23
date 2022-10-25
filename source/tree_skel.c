@@ -3,7 +3,7 @@ Grupo 47
 Diogo Fernandes, fc54458
 Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
-*/
+ */
 
 #include "sdmessage.pb-c.h"
 #include "message-private.h"
@@ -34,25 +34,25 @@ int invoke(struct message_t *msg) {
 	}
 
 	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_SIZE && netmsg->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
-		
+
 		int size = tree_size(tree);
 
 		netmsg->datalength = size;
 		netmsg->opcode = MESSAGE_T__OPCODE__OP_SIZE + 1;
 		netmsg->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
-		
+
 		return 0;
 
 	}
 
 	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_HEIGHT && netmsg->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
-		
+
 		int height = tree_height(tree);
 
 		netmsg->datalength = height;
 		netmsg->opcode = MESSAGE_T__OPCODE__OP_HEIGHT + 1;
 		netmsg->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
-		
+
 		return 0;
 
 	}
@@ -73,14 +73,14 @@ int invoke(struct message_t *msg) {
 
 
 	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_GET && netmsg->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
-		
+
 		netmsg->opcode = MESSAGE_T__OPCODE__OP_GET + 1;
 		netmsg->c_type = MESSAGE_T__C_TYPE__CT_VALUE;
 
 		struct data_t *data = tree_get(tree, (char *)netmsg->data.data);
 
 		if (data == NULL) {
-			
+
 			free(netmsg->data.data);
 
 			netmsg->data.data = NULL;
@@ -93,7 +93,7 @@ int invoke(struct message_t *msg) {
 
 		netmsg->data.data = (uint8_t *)data->data;
 		netmsg->data.len = data->datasize;
-		
+
 		free(data);
 
 		return 0;
@@ -129,14 +129,21 @@ int invoke(struct message_t *msg) {
 
 	}
 
-	
+
 	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_GETKEYS && netmsg->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
 
 		int treesize = tree_size(tree);
 
+		//Quando tree for null ou nao tiver nodes
+
 		netmsg->opcode = MESSAGE_T__OPCODE__OP_GETKEYS + 1;
 		netmsg->c_type = MESSAGE_T__C_TYPE__CT_KEYS;
 
+		if(treesize == 0) {
+			netmsg->keys = NULL;
+			netmsg->n_keys = treesize;
+			return 0;
+		}
 		char **keys = tree_get_keys(tree);
 
 		if (keys == NULL) {
@@ -159,12 +166,20 @@ int invoke(struct message_t *msg) {
 
 		void **values = tree_get_values(tree);
 
+		if(treesize == 0) {
+			netmsg->values = NULL;
+			netmsg->n_values = treesize;
+			return 0;
+		}
+
 		if (values == NULL) {
 			return -1;
 
 		}
-
-		netmsg->values = (ProtobufCBinaryData * ) values;
+		//printf("Values gathered\n");
+		netmsg->values = malloc(sizeof(ProtobufCBinaryData*));
+		netmsg->values->data = (uint8_t *) *values;
+		netmsg->values->len = treesize;
 		netmsg->n_values = treesize;
 
 		return 0;
