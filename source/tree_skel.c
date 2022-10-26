@@ -136,8 +136,6 @@ int invoke(struct message_t *msg) {
 
 		int treesize = tree_size(tree);
 
-		//Quando tree for null ou nao tiver nodes
-
 		netmsg->opcode = MESSAGE_T__OPCODE__OP_GETKEYS + 1;
 		netmsg->c_type = MESSAGE_T__C_TYPE__CT_KEYS;
 

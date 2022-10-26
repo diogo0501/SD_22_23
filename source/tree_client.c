@@ -26,8 +26,11 @@ void sig_handler(int signum) {
 
 int main(int argc, char **argv) {
 
-	signal(SIGPIPE, sig_handler);                                                       // o gnu do windows n esta a reconhecer o sig SIGPIPE
-	signal(SIGINT, sig_handler);
+	signal(SIGINT, (sig_t)sig_handler);
+	signal(SIGSEGV, (sig_t)sig_handler);
+	signal(SIGTSTP, (sig_t)sig_handler);		
+	signal(SIGABRT, (sig_t)sig_handler);	
+	signal(SIGPIPE,SIG_IGN);
 
 	if(argc != 2) {
 		printf("Invalid number of arguments, try: ./tree_client <address:port>");
@@ -69,7 +72,6 @@ int main(int argc, char **argv) {
 
 							char *str = malloc(strlen(tok) + 1);
 							strcpy(str, tok);
-							//printf("%s\n",str);
 
 							struct data_t *data = data_create2(strlen(str) + 1, (void*)str);
 							struct entry_t *entry = entry_create(entry_key, data);
@@ -176,7 +178,9 @@ int main(int argc, char **argv) {
 				else if(tok != NULL & strcmp(tok, "quit") == 0) {
 
 					free(op_args);
+					network_close(rtree);
 					invalid_op = 0;
+					return 0;
 
 				}
 				else {

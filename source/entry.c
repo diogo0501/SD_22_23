@@ -64,7 +64,9 @@ void entry_replace(struct entry_t *entry, char *new_key, struct data_t *new_valu
 *  A função devolve 0 se forem iguais, -1 se entry1<entry2, e 1 caso contrário.
 */
 int entry_compare(struct entry_t *entry1, struct entry_t *entry2) {
+
     int m = strcmp(entry1->key,entry2->key);
+    
     if(m<0) {
         return -1;
     }    

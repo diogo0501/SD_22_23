@@ -59,26 +59,25 @@ int network_server_init(short port){
 
 int network_main_loop(int listening_socket){
 
-	signal(SIGABRT, (sig_t)network_server_close);
-	signal(SIGTSTP, (sig_t)network_server_close);
-	signal(SIGSEGV, (sig_t)network_server_close);
-	signal(SIGINT, (sig_t)network_server_close);
 	signal(SIGPIPE, SIG_IGN);
+	signal(SIGINT, (sig_t)network_server_close);
+	signal(SIGSEGV, (sig_t)network_server_close);
+	signal(SIGTSTP, (sig_t)network_server_close);		
+	signal(SIGABRT, (sig_t)network_server_close);	
 
 	int connsockfd;
-	struct sockaddr_in client;
-	socklen_t size_client = sizeof((struct addrsock *)&client);
+	struct sockaddr_in client_addr;
+	socklen_t client_len = sizeof((struct addrsock *)&client_addr);
 	struct message_t *recv_msg_str;
 
-	while ((connsockfd = accept(listening_socket,(struct sockaddr *) &client, &size_client)) != -1) {
+	while ((connsockfd = accept(listening_socket,(struct sockaddr *) &client_addr, &client_len)) != -1) {
 		
 		recv_msg_str = malloc(sizeof(struct message_t));
 		
 		recv_msg_str = network_receive(connsockfd);
 
-
 		if(recv_msg_str == NULL) {
-			return -1;
+			continue;
 		}
 
 		int op = invoke(recv_msg_str);
@@ -109,39 +108,41 @@ int network_main_loop(int listening_socket){
 struct message_t *network_receive(int client_socket) {
 	
 	struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
-	int nbytes;
+	int recv_bytes;
     unsigned len = 0;
 
-    if ((nbytes = recv_all(client_socket, (uint8_t *)&len, sizeof(unsigned))) == -1) {
+	recv_bytes = recv_all(client_socket, (uint8_t *)&len, sizeof(unsigned));
+
+    if (recv_bytes == -1) {
         perror("Error on receiving data from the client\n");
         close(client_socket);
         return NULL;
     }
 
     len = ntohl(len);
-    uint8_t *response = malloc(len);
+    uint8_t *res = malloc(len);
 
-    if (len <= 0 || (nbytes = recv_all(client_socket, response, len)) == -1) {
+	recv_bytes = recv_all(client_socket, res, len);
+
+    if (recv_bytes == -1 || len <= 0) {
 
         perror("Error on receiving data from the client\n");
-        free(response);
-
+        free(res);
         return NULL;
     }
 
-    MessageT *recv_msg = message_t__unpack(NULL, nbytes, response);
+    MessageT *recv_msg = message_t__unpack(NULL, recv_bytes, res);
 
 	msg_wrapper->recv_msg = recv_msg;
 
     if (recv_msg == NULL) {
-
         message_t__free_unpacked(recv_msg, NULL);
-        fprintf(stdout, "error unpacking message\n");
-        free(response);
+        perror("Error unpacking message\n");
+        free(res);
 		return NULL;
     }
 
-    free(response);
+    free(res);
 
     return msg_wrapper;
 }
@@ -150,16 +151,15 @@ int network_send(int client_socket, struct message_t *msg) {
 
 	unsigned len,lenNet;
 	uint8_t *buf,*buf1;
-	int nbytes;
+	int send_bytes;
 
 	MessageT *recv_msg = msg->recv_msg;
 
     len = message_t__get_packed_size(recv_msg);
     buf = malloc(len);
 
-    if (buf == NULL)
-    {
-        perror("Malloc error\n");
+    if (buf == NULL) {
+        perror("Error when mallocing buffer\n");
         free(buf);
         close(client_socket);
         return -1;
@@ -171,7 +171,8 @@ int network_send(int client_socket, struct message_t *msg) {
     lenNet = htonl(len);
     memcpy(buf1, &lenNet, sizeof(unsigned));
 
-    if ((nbytes = send_all(client_socket, buf1, sizeof(unsigned))) == -1) {
+	send_bytes = send_all(client_socket, buf1, sizeof(unsigned));
+    if (send_bytes == -1) {
         perror("Error on sending data to client\n");
         message_t__free_unpacked(recv_msg, NULL);
         free(buf);
@@ -179,13 +180,15 @@ int network_send(int client_socket, struct message_t *msg) {
         return -1;
     }
 
-     if ((nbytes = send_all(client_socket, buf, len)) == -1) {
-         perror("Error on sending data to client\n");
-         message_t__free_unpacked(recv_msg, NULL);
-         free(buf);
-         free(buf1);
-         return -1;
-     }
+	//Será que é preciso os dois buffers??
+	send_bytes = send_all(client_socket, buf, len);
+	if (send_bytes == -1) {
+		perror("Error on sending data to client\n");
+		message_t__free_unpacked(recv_msg, NULL);
+		free(buf);
+		free(buf1);
+		return -1;
+	}
 
     message_t__free_unpacked(recv_msg, NULL);
 
