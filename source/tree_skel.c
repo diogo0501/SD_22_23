@@ -32,6 +32,7 @@ int invoke (struct message_t *msg){
 	switch(msg->recv_msg->opcode){
 		case(MESSAGE_T__OPCODE__OP_BAD):
 			return -1;
+			break;
 		case(MESSAGE_T__OPCODE__OP_SIZE):
 			int size = tree_size(tree);
 			if(size<0){
@@ -43,6 +44,7 @@ int invoke (struct message_t *msg){
 				msg->recv_msg->c_type=MESSAGE_T__C_TYPE__CT_RESULT;
 				msg->recv_msg->data_size=size;
 			}
+			break;
 		case(MESSAGE_T__OPCODE__OP_HEIGHT):
 			int height = tree_height(tree);
 			if (height<0){
@@ -54,6 +56,7 @@ int invoke (struct message_t *msg){
 				msg->recv_msg->c_type=MESSAGE_T__C_TYPE__CT_RESULT;
 				msg->recv_msg->data_size=height;
 			}
+			break;
 		case(MESSAGE_T__OPCODE__OP_DEL):
 			int result = tree_del(tree,(char*) msg->recv_msg->data.data);
 			if(result==-1){
@@ -65,6 +68,7 @@ int invoke (struct message_t *msg){
 				msg->recv_msg->opcode++;
 				msg->recv_msg->c_type=MESSAGE_T__C_TYPE__CT_NONE;
 			}
+			break;
 		case(MESSAGE_T__OPCODE__OP_GET):
 			struct data_t * result;
 			if(result=tree_get(tree,(char*) msg->recv_msg->data.data==NULL)){
@@ -77,6 +81,7 @@ int invoke (struct message_t *msg){
 				msg->recv_msg->data.data=result;
 				msg->recv_msg->data.len=sizeof(result);
 			}
+			break;
 		case(MESSAGE_T__OPCODE__OP_PUT):
 			struct data_t *to_put;
 			to_put=data_create2(msg->recv_msg->entry->value.len,msg->recv_msg->entry->value.data);
@@ -97,6 +102,7 @@ int invoke (struct message_t *msg){
 					msg->recv_msg->c_type=MESSAGE_T__C_TYPE__CT_NONE;
 				}
 			}
+			break;
 		case(MESSAGE_T__OPCODE__OP_GETKEYS):
 			char **keys=tree_get_keys(tree);
 			if (keys==NULL){
@@ -109,6 +115,7 @@ int invoke (struct message_t *msg){
 				msg->recv_msg->c_type=MESSAGE_T__C_TYPE__CT_KEYS;
 				msg->recv_msg->keys->keys;
 			}
+			break;
 		case(MESSAGE_T__OPCODE__OP_GETVALUES):
 			void **values = tree_get_values(tree);
 			if(values==NULL){
@@ -121,6 +128,7 @@ int invoke (struct message_t *msg){
 				msg->recv_msg->c_type=MESSAGE_T__C_TYPE__CT_VALUES;
 				msg->recv_msg->values->values=values;
 			}
+			break;
 	
 	return 0;
 
