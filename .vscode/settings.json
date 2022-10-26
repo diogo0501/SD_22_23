@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "client_stub-private.h": "c",
-        "in.h": "c",
-        "types.h": "c",
-        "stdlib.h": "c",
-        "client_stub.h": "c"
-    }
-}

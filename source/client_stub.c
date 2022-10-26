@@ -337,12 +337,13 @@ void **rtree_get_values(struct rtree_t *rtree) {
 
         for (int i = 0; i < nrValues; i++) {
             values[i] = (void*)malloc(resp->recv_msg->values[i].len);
-            values[i] = (void*)resp->recv_msg->values[i].data;
+            memcpy(values[i],(void*)(resp->recv_msg->values[i].data),sizeof(resp->recv_msg->values[i].len));
         }
 
         values[nrValues] = NULL;
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);
+
         return values;
     } else {
         message_t__free_unpacked(resp->recv_msg, NULL);
