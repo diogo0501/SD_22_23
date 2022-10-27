@@ -164,7 +164,7 @@ int invoke(struct message_t *msg) {
 
 		netmsg->opcode = MESSAGE_T__OPCODE__OP_GETVALUES + 1;
 		netmsg->c_type = MESSAGE_T__C_TYPE__CT_VALUES;
-
+		//Valgrind queixa-se. acho que pode ser resolvido com memcpy
 		void **values = tree_get_values(tree);
 
 		if(treesize == 0) {

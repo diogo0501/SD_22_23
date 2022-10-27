@@ -156,7 +156,7 @@ int network_send(int client_socket, struct message_t *msg) {
 	MessageT *recv_msg = msg->recv_msg;
 
     len = message_t__get_packed_size(recv_msg);
-    buf = malloc(len);
+    buf = malloc((int)len);
 
     if (buf == NULL) {
         perror("Error when mallocing buffer\n");

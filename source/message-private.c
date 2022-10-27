@@ -14,10 +14,9 @@ Miguel Santos, fc54461
 
 
 int recv_all(int sock, uint8_t* buf, unsigned len) {
-    char *ptr = (char *)buf;
     int total = 0;
     int bytesleft = len;
-    int n;
+    int n = 0;
     while (total < len)
     {
         {
@@ -36,10 +35,9 @@ int recv_all(int sock, uint8_t* buf, unsigned len) {
 }
 
 int send_all(int sock, uint8_t *buf, int len) {
-    char *ptr = (char *)buf;
     int total = 0;
     int bytesleft = len;
-    int n;
+    int n = 0;
     while (total < len)
     {
         {

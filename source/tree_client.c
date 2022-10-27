@@ -142,9 +142,9 @@ int main(int argc, char **argv) {
 					invalid_op = 0;
 				}  else if(tok != NULL & strcmp(tok, "getkeys") == 0) {
 
-					char **keys = rtree_get_keys(rtree);
+					char **keys = rtree_get_keys(rtree); 
 
-					if (keys == NULL) {
+					if (keys[0] == NULL) {
 						printf("There is currently no nodes in the tree\n");
 					}
 					else {
@@ -156,13 +156,16 @@ int main(int argc, char **argv) {
 						}
 					}
 					invalid_op = 0;
+					for(int i = 0; keys[i] != NULL; i++) {
+							free(keys[i]);
+					}
 					free(keys);
 				}  else if(tok != NULL & strcmp(tok, "getvalues") == 0) {
 
 					void **values = rtree_get_values(rtree);
 					int i = 0;
 
-					if (values == NULL) {
+					if (values[0] == NULL) {
 						printf("There is currently no nodes in the tree\n");
 					}
 					else {
@@ -172,6 +175,9 @@ int main(int argc, char **argv) {
 						}
 					}
 					invalid_op = 0;
+					for(int i = 0; values[i] != NULL; i++) {
+							free(values[i]);
+					}
 					free(values);
 
 				}
