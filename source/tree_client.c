@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
 
 	port_address = malloc(50);
 	strcpy(port_address, argv[1]);
-	char linha[1000];
+	char *linha = malloc(1000);				//valor arbitrario
 
 	rtree = rtree_connect(port_address);
 
@@ -196,5 +196,6 @@ int main(int argc, char **argv) {
 
 
 	}
+	free(linha);
 	free(port_address);
 }
