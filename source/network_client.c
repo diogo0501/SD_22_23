@@ -64,76 +64,80 @@ int network_connect(struct rtree_t *rtree){
  */
 struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t *msg){
 
-   	int sockfd = rtree->sockfd;
-    unsigned len;
-    len = message_t__get_packed_size(msg->recv_msg);
-    uint8_t *buf = malloc(len);
+   //Obter o descritor da ligação (socket) da estrutura rtree_t;
+   	int socket = rtree->sockfd;
+    
+    unsigned int packed_size;
+    int nbytes;
+    packed_size = message_t__get_packed_size(msg->recv_msg);
+    uint8_t *msg_content_buf = malloc(packed_size);
 
-    if (buf == NULL) {
-        close(sockfd);
+    if (msg_content_buf == NULL) {
+        close(socket);
         return NULL;
     }
 
-    message_t__pack(msg->recv_msg, buf);
-    int nbytes;
-    uint8_t *buf1 = malloc(len);
-    unsigned lenNet = htonl(len);
-    memcpy(buf1, &lenNet, sizeof(unsigned));
-    
-    if((nbytes = send_all(rtree->sockfd, buf1, sizeof(unsigned))) == -1) {
+    //Serializar a mensagem contida em msg;
+    message_t__pack(msg->recv_msg, msg_content_buf);
+    uint8_t *msg_size_buf = malloc(packed_size);
+    unsigned net_byte_order_message_size = htonl(packed_size);
+    memcpy(msg_size_buf, &net_byte_order_message_size, sizeof(unsigned));
+
+    //Enviar a mensagem serializada para o servidor;
+    if((nbytes = send_all(rtree->sockfd, msg_size_buf, sizeof(unsigned))) == -1) {
         perror("Couldnt send data to the server");
         close(rtree->sockfd);
-        free(buf);
-        free(buf1);
+        free(msg_content_buf);
+        free(msg_size_buf);
         return 0;
     }
 
-    if((nbytes = send_all(sockfd, buf, len)) == -1) {
+    if((nbytes = send_all(socket, msg_content_buf, packed_size)) == -1) {
         perror("Couldnt send data to the server");
-        close(sockfd);
-        free(buf);
-        free(buf1);
+        close(socket);
+        free(msg_content_buf);
+        free(msg_size_buf);
         return NULL;
     }
 
-    free(buf);
-    free(buf1);
+    free(msg_content_buf);
+    free(msg_size_buf);
 
     uint8_t *resp = malloc(2048);		//valor arbitrario
-    unsigned *msgLen = malloc(sizeof(unsigned));
+    unsigned *received_message_size = malloc(sizeof(unsigned));
 
-    if((nbytes = recv_all(sockfd, (uint8_t *)msgLen, sizeof(unsigned))) == -1) {
+    if((nbytes = recv_all(socket, (uint8_t *)received_message_size, sizeof(unsigned))) == -1) {
         perror("Couldnt receive data from the server");
-        close(sockfd);
+        close(socket);
         free(resp);
-        free(msgLen);
+        free(received_message_size);
         return NULL;
     }
 
-    *msgLen = ntohl(*msgLen);
+    *received_message_size = ntohl(*received_message_size);
 
-    if(*msgLen > 0 && (nbytes = recv_all(sockfd, resp, *msgLen)) == -1) {
+    if((nbytes = recv_all(socket, resp, *received_message_size)) == -1 && *received_message_size > 0) {
         perror("Couldnt receive data from the server");
-        close(sockfd);
+        close(socket);
         free(resp);
-        free(msgLen);
+        free(received_message_size);
         return NULL;
     }
 
+    //De-serializar a mensagem de resposta;
     MessageT *recv_msg = message_t__unpack(NULL, nbytes, resp);
     free(resp);
 
     if (recv_msg == NULL) {
         message_t__free_unpacked(recv_msg, NULL);
-        fprintf(stdout, "error unpacking message\n");
-        close(sockfd);
-        free(msgLen);
+        close(socket);
+        free(received_message_size);
         return NULL;
     }
 
-    free(msgLen);
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = recv_msg;
+    free(received_message_size);
 
     return msg_wrapper;
 }

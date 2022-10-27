@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
 					}
 					else {
 						while(values[i] != NULL) {
-							printf("Value : %s\n",(char*)values[i]);
+							printf("Value : %s\n",(char*) values[i]);
 							i++;
 						}
 					}

@@ -5,171 +5,172 @@ Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
  */
 
+#include "entry.h"
 #include "sdmessage.pb-c.h"
 #include "message-private.h"
 #include "tree_skel.h"
-#include "entry.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-struct tree_t *tree;
+struct tree_t *server_side_tree;
 
+/* Inicia o skeleton da árvore.
+ * O main() do servidor deve chamar esta função antes de poder usar a
+ * função invoke(). 
+ * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
+ */
 int tree_skel_init() {
 
-	tree = tree_create();
+	server_side_tree = tree_create();
 
-	return tree == NULL ? -1 : 0;
+	if(server_side_tree == NULL) {
+		return -1;
+	}else {
+		return 0;
+	}
 }
 
+/* Liberta toda a memória e recursos alocados pela função tree_skel_init.
+ */
 void tree_skel_destroy() {
-	tree_destroy(tree);
-};
+	tree_destroy(server_side_tree);
+}
 
+/* Executa uma operação na árvore (indicada pelo opcode contido em msg)
+ * e utiliza a mesma estrutura message_t para devolver o resultado.
+ * Retorna 0 (OK) ou -1 (erro, por exemplo, árvore nao incializada)
+*/
 int invoke(struct message_t *msg) {
 
-	MessageT *netmsg = msg->recv_msg;
+	MessageT *message = msg->recv_msg;
 
-	if (tree == NULL || msg == NULL || netmsg == NULL) {
+	if(server_side_tree == NULL || msg == NULL) {
 		return -1;
 	}
 
-	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_SIZE && netmsg->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
-
-		int size = tree_size(tree);
-
-		netmsg->datalength = size;
-		netmsg->opcode = MESSAGE_T__OPCODE__OP_SIZE + 1;
-		netmsg->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
-
-		return 0;
-
-	}
-
-	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_HEIGHT && netmsg->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
-
-		int height = tree_height(tree);
-
-		netmsg->datalength = height;
-		netmsg->opcode = MESSAGE_T__OPCODE__OP_HEIGHT + 1;
-		netmsg->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
-
-		return 0;
-
-	}
-
-	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_DEL && netmsg->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
-
-		int size = tree_size(tree);
-
-		int del = tree_del(tree, (char*) netmsg->data.data);
-
-		if(del == -1) {
+	if(message->opcode == MESSAGE_T__OPCODE__OP_PUT && message->c_type == MESSAGE_T__C_TYPE__CT_ENTRY) {
+		
+		if(message->entry == NULL) {
 			return -1;
 		}
-		netmsg->datalength = 0;
-		netmsg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
-		netmsg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
 
-		return 0;
+		message->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+		message->datalength = 0;
+
+		struct data_t *data = data_create2(message->entry->data.len, (void*)message->entry->data.data);
+
+		struct entry_t *entry = entry_create(message->entry->key, data);
+
+		free(entry);
+
+		int status = tree_put(server_side_tree, message->entry->key, data);
+		
+		if(status == -1) {
+			return -1;
+		} else {
+			free(data);
+			return 0;
+		}
 	}
 
+	if(message->opcode == MESSAGE_T__OPCODE__OP_GET && message->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
 
-	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_GET && netmsg->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
+		message->opcode = MESSAGE_T__OPCODE__OP_GET + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_VALUE;
 
-		netmsg->opcode = MESSAGE_T__OPCODE__OP_GET + 1;
-		netmsg->c_type = MESSAGE_T__C_TYPE__CT_VALUE;
-
-		struct data_t *data = tree_get(tree, (char *)netmsg->data.data);
-
+		struct data_t *data = tree_get(server_side_tree, (char *)message->data.data);
+		//Nao encontra a data com given key
 		if (data == NULL) {
 
-			free(netmsg->data.data);
+			free(message->data.data);
 
-			netmsg->data.data = NULL;
-			netmsg->data.len = 0;
+			message->data.data = NULL;
+			message->data.len = 0;
 
 			return 0;
 		}
 
-		free(netmsg->data.data);
+		free(message->data.data);
 
-		netmsg->data.data = (uint8_t *)data->data;
-		netmsg->data.len = data->datasize;
+		message->data.data = (uint8_t *)data->data;
+		message->data.len = data->datasize;
 
 		free(data);
 
 		return 0;
 	}
 
-	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_PUT && netmsg->c_type == MESSAGE_T__C_TYPE__CT_ENTRY)
-	{
-		if (netmsg->entry == NULL || netmsg->entry == NULL) {
+	if(message->opcode == MESSAGE_T__OPCODE__OP_DEL && message->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
+
+		int status = tree_del(server_side_tree, (char*) message->data.data);
+
+		if(status == -1) {
 			return -1;
-		}
+		} else{
+			message->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
+			message->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+			message->datalength = 0;
 
-		struct data_t *temp = data_create2(netmsg->entry->data.len, (void*)netmsg->entry->data.data);
-
-		struct data_t *temp1 = data_create2(netmsg->entry->data.len, (void*)netmsg->entry->data.data);
-
-		struct entry_t *entry = entry_create(netmsg->entry->key, temp1);
-
-
-		free(temp1);
-		free(entry);
-
-		int put = tree_put(tree, netmsg->entry->key, temp);
-		if (put == -1)
-		{
-			return -1;
-		}
-
-		free(temp);
-		netmsg->datalength = 0;
-
-		netmsg->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
-		netmsg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-		return 0;
-
-	}
-
-
-	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_GETKEYS && netmsg->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
-
-		int treesize = tree_size(tree);
-
-		netmsg->opcode = MESSAGE_T__OPCODE__OP_GETKEYS + 1;
-		netmsg->c_type = MESSAGE_T__C_TYPE__CT_KEYS;
-
-		if(treesize == 0) {
-			netmsg->keys = NULL;
-			netmsg->n_keys = treesize;
 			return 0;
 		}
-		char **keys = tree_get_keys(tree);
+	}
+
+	if(message->opcode == MESSAGE_T__OPCODE__OP_SIZE && message->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
+		
+		message->opcode = MESSAGE_T__OPCODE__OP_SIZE + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
+		int s = tree_size(server_side_tree);
+		message->datalength = s;
+		return 0;
+	}
+
+	if(message->opcode == MESSAGE_T__OPCODE__OP_HEIGHT && message->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
+		
+		message->opcode = MESSAGE_T__OPCODE__OP_HEIGHT + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
+		int h = tree_height(server_side_tree);
+		message->datalength = h;
+		return 0;
+	}
+
+	if (message->opcode == MESSAGE_T__OPCODE__OP_GETKEYS && message->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
+
+		int s = tree_size(server_side_tree);
+
+		message->opcode = MESSAGE_T__OPCODE__OP_GETKEYS + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_KEYS;
+
+		if(s == 0) {
+			message->keys = NULL;
+			message->n_keys = s;
+			return 0;
+		}
+		char **keys = tree_get_keys(server_side_tree);
 
 		if (keys == NULL) {
 			return -1;
 
 		}
 
-		netmsg->keys = keys;
-		netmsg->n_keys = treesize;
+		message->keys = keys;
+		message->n_keys = s;
 
 		return 0;
 	}
 
-	if (netmsg->opcode == MESSAGE_T__OPCODE__OP_GETVALUES && netmsg->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
+	if (message->opcode == MESSAGE_T__OPCODE__OP_GETVALUES && message->c_type == MESSAGE_T__C_TYPE__CT_NONE) {
 
-		int treesize = tree_size(tree);
+		int s = tree_size(server_side_tree);
 
-		netmsg->opcode = MESSAGE_T__OPCODE__OP_GETVALUES + 1;
-		netmsg->c_type = MESSAGE_T__C_TYPE__CT_VALUES;
+		message->opcode = MESSAGE_T__OPCODE__OP_GETVALUES + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_VALUES;
 
-		void **values = tree_get_values(tree);
+		void **values = tree_get_values(server_side_tree);
 
-		if(treesize == 0) {
-			netmsg->values = NULL;
-			netmsg->n_values = treesize;
+		if(s == 0) {
+			message->values = NULL;
+			message->n_values = s;
 			return 0;
 		}
 
@@ -178,20 +179,20 @@ int invoke(struct message_t *msg) {
 
 		}
 
-		netmsg->values = malloc(sizeof(ProtobufCBinaryData) * treesize);
-		for(int i = 0; i < treesize; i++) {
+		message->values = malloc(sizeof(ProtobufCBinaryData) * s);
+		for(int i = 0; i < s; i++) {
 			char* tmp = (char*)(((struct data_t*)values[i])->data);
-			netmsg->values[i].data = (uint8_t *)((void*)tmp);
-			netmsg->values[i].len = sizeof(void*);
+			message->values[i].data = (uint8_t *)((void*)tmp);
+			message->values[i].len = sizeof(void*);
 		}
-		netmsg->n_values = treesize;
+		message->n_values = s;
 
 		return 0;
 	}
 
-	netmsg->datalength = 0;
-	netmsg->opcode = MESSAGE_T__OPCODE__OP_BAD;
-	netmsg->c_type = MESSAGE_T__C_TYPE__CT_BAD;
+	message->datalength = 0;
+	message->opcode = MESSAGE_T__OPCODE__OP_BAD;
+	message->c_type = MESSAGE_T__C_TYPE__CT_BAD;
 
 	return 0;
 }

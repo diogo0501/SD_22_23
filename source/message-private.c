@@ -32,7 +32,7 @@ int recv_all(int sock, uint8_t* buf, unsigned len) {
             bytesleft -= n;
         }
     }
-    return n == -1 ? -1 : total; //Retorna a totalidade dos bytes enviados
+    return n == -1 ? -1 : total; //Retorna a totalidade dos bytes recebidos
 }
 
 int send_all(int sock, uint8_t *buf, int len) {
