@@ -20,7 +20,6 @@ char *port_address = NULL;
 
 void sig_handler(int signum) {
 	rtree_disconnect(rtree);
-	free(port_address);
 	exit(-1);
 }
 
@@ -87,6 +86,7 @@ int main(int argc, char **argv) {
 						else{
 							printf("Invalid input format required to execute operation 'put'\n");
 						}
+						free(entry_key);
 					}
 					else {
 
@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
 
 					char **keys = rtree_get_keys(rtree);
 
-					if (keys == NULL) {
+					if (keys[0] == NULL) {
 						printf("There is currently no nodes in the tree\n");
 					}
 					else {
@@ -155,6 +155,10 @@ int main(int argc, char **argv) {
 							i++;
 						}
 					}
+					
+					for(int i = 0; keys[i] != NULL; i++) {
+							free(keys[i]);
+					}
 					invalid_op = 0;
 					free(keys);
 				}  else if(tok != NULL & strcmp(tok, "getvalues") == 0) {
@@ -162,16 +166,19 @@ int main(int argc, char **argv) {
 					void **values = rtree_get_values(rtree);
 					int i = 0;
 
-					if (values == NULL) {
+					if(values[0] == NULL) {
 						printf("There is currently no nodes in the tree\n");
-					}
-					else {
+					}else {
 						while(values[i] != NULL) {
 							printf("Value : %s\n",(char*) values[i]);
 							i++;
 						}
 					}
 					invalid_op = 0;
+
+					for(int i = 0; values[i] != NULL; i++) {
+							free(values[i]);
+					}
 					free(values);
 
 				}
