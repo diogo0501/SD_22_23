@@ -12,46 +12,46 @@ Miguel Santos, fc54461
 #include <sys/types.h>
 #include <sys/socket.h>
 
-
+/* 
+ * Returns the number of bytes received through given socket
+ */
 int recv_all(int sock, uint8_t* buf, unsigned len) {
-    char *ptr = (char *)buf;
-    int total = 0;
-    int bytesleft = len;
-    int n;
-    while (total < len)
-    {
-        {
-            n = recv(sock, buf + total, bytesleft, 0);
-            if (n == -1 || n == 0)
-            {
-                n = -1;
-                break;
-            }
-            total += n;
+    int bufsize = len;
 
-            bytesleft -= n;
+    while(len>0) {
+
+        int res = read(sock, buf, len);
+
+        if(res < 1) {
+            if(errno==EINTR) continue;
+            perror("read failed");
+            return -1;
         }
+
+        buf += res;
+        len -= res;
     }
-    return n == -1 ? -1 : total; //Retorna a totalidade dos bytes recebidos
+    return bufsize;
 }
 
+/* 
+ * Returns the number of bytes sent through given socket
+ */
 int send_all(int sock, uint8_t *buf, int len) {
-    char *ptr = (char *)buf;
-    int total = 0;
-    int bytesleft = len;
-    int n;
-    while (total < len)
-    {
-        {
-            n = send(sock, buf + total, bytesleft, 0);
-            if (n == -1)
-            {
-                break;
-            }
-            total += n;
 
-            bytesleft -= n;
+    int bufsize = len;
+
+    while(len>0) {
+
+        int res = write(sock, buf, len);
+        if(res < 0) {
+            if(errno==EINTR) continue;
+            perror("write failed");
+            return -1;
         }
+
+        buf += res;
+        len -= res;
     }
-    return n == -1 ? -1 : total; //Retorna a totalidade dos bytes enviados
+    return bufsize;
 }
