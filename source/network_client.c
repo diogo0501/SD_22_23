@@ -89,7 +89,7 @@ struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t 
         close(rtree->sockfd);
         free(msg_content_buf);
         free(msg_size_buf);
-        return 0;
+        return NULL;
     }
 
     if((nbytes = send_all(socket, msg_content_buf, packed_size)) == -1) {
@@ -127,13 +127,6 @@ struct message_t *network_send_receive(struct rtree_t * rtree, struct message_t 
     //De-serializar a mensagem de resposta;
     MessageT *recv_msg = message_t__unpack(NULL, nbytes, resp);
     free(resp);
-
-    if (recv_msg == NULL) {
-        message_t__free_unpacked(recv_msg, NULL);
-        close(socket);
-        free(received_message_size);
-        return NULL;
-    }
 
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = recv_msg;
