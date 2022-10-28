@@ -86,7 +86,6 @@ int main(int argc, char **argv) {
 						else{
 							printf("Invalid input format required to execute operation 'put'\n");
 						}
-						free(entry_key);
 					}
 					else {
 
@@ -157,7 +156,7 @@ int main(int argc, char **argv) {
 					}
 					
 					for(int i = 0; keys[i] != NULL; i++) {
-							free(keys[i]);
+						free(keys[i]);
 					}
 					invalid_op = 0;
 					free(keys);
@@ -186,12 +185,14 @@ int main(int argc, char **argv) {
 
 					free(op_args);
 					network_close(rtree);
-					invalid_op = 0;
+					free(linha);
+					rtree_disconnect(rtree);
 					return 0;
 
 				}
 				else {
 					printf("Invalid operation\n");
+					free(op_args);
 				}
 
 			}

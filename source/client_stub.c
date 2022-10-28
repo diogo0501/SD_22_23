@@ -155,6 +155,7 @@ struct data_t *rtree_get(struct rtree_t *rtree, char *key) {
         if (data_size == 0){
             message_t__free_unpacked(resp->recv_msg, NULL);
             free(resp);
+            free(msg);
             free(msg_wrapper);
             return NULL;
         }
@@ -165,12 +166,14 @@ struct data_t *rtree_get(struct rtree_t *rtree, char *key) {
 
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);
+        free(msg);
         free(msg_wrapper);
 
         return data;
     } else {
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);
+        free(msg);
         free(msg_wrapper);
         return NULL;
     }

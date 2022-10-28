@@ -11,6 +11,7 @@ Miguel Santos, fc54461
 #include "tree_skel.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct tree_t *server_side_tree;
 
@@ -182,10 +183,18 @@ int invoke(struct message_t *msg) {
 		message->values = malloc(sizeof(ProtobufCBinaryData) * s);
 		for(int i = 0; i < s; i++) {
 			char* tmp = (char*)(((struct data_t*)values[i])->data);
-			message->values[i].data = (uint8_t *)((void*)tmp);
-			message->values[i].len = sizeof(void*);
+			printf("%d\n\n", ((struct data_t*)values[i])->datasize);
+			message->values[i].data = malloc(sizeof(uint8_t*));
+			memcpy(message->values[i].data,(uint8_t *)((void*)tmp),sizeof(uint8_t*));
+			message->values[i].len = sizeof(uint8_t*);
 		}
 		message->n_values = s;
+
+		for(int i = 0; i < s+1; i++) {
+			free(values[i]);
+		}
+		
+		free(values);
 
 		return 0;
 	}

@@ -72,11 +72,11 @@ int network_main_loop(int listening_socket){
 
 	while ((connsockfd = accept(listening_socket,(struct sockaddr *) &client_addr, &client_len)) != -1) {
 		
-		recv_msg_str = malloc(sizeof(struct message_t));
-		
 		recv_msg_str = network_receive(connsockfd);
 
 		if(recv_msg_str == NULL) {
+			free(recv_msg_str);
+			close(connsockfd);	
 			continue;
 		}
 
@@ -97,7 +97,7 @@ int network_main_loop(int listening_socket){
 			response = network_send(connsockfd,recv_msg_str);
 		}
 		
-		free(recv_msg_str);	
+		free(recv_msg_str);
 
 		close(connsockfd);
 	}
