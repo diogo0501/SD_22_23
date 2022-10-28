@@ -25,10 +25,7 @@ void sig_handler(int signum) {
 
 int main(int argc, char **argv) {
 
-	signal(SIGINT, sig_handler);
-	signal(SIGSEGV, sig_handler);
-	signal(SIGTSTP, sig_handler);		
-	signal(SIGABRT, sig_handler);	
+	signal(SIGINT, sig_handler);	
 	signal(SIGPIPE,SIG_IGN);
 
 	if(argc != 2) {
