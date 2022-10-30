@@ -128,12 +128,12 @@ struct message_t *network_receive(int client_socket) {
         return NULL;
     }
 
-    MessageT *recv_msg = message_t__unpack(NULL, recv_bytes, res);
+    MessageT *response = message_t__unpack(NULL, recv_bytes, res);
 
-	msg_wrapper->recv_msg = recv_msg;
+	msg_wrapper->recv_msg = response;
 
-    if (recv_msg == NULL) {
-        message_t__free_unpacked(recv_msg, NULL);
+    if (response == NULL) {
+        message_t__free_unpacked(response, NULL);
         perror("Error unpacking message\n");
         free(res);
 		return NULL;
@@ -150,9 +150,9 @@ int network_send(int client_socket, struct message_t *msg) {
 	uint8_t *data_buf,*len_buf;
 	int send_bytes;
 
-	MessageT *recv_msg = msg->recv_msg;
+	MessageT *message = msg->recv_msg;
 
-    data_len = message_t__get_packed_size(recv_msg);
+    data_len = message_t__get_packed_size(message);
     data_buf = malloc(data_len);
 
     if (data_buf == NULL) {
@@ -162,7 +162,7 @@ int network_send(int client_socket, struct message_t *msg) {
         return -1;
     }
 
-    message_t__pack(recv_msg, data_buf);
+    message_t__pack(message, data_buf);
 
     len_buf = malloc(data_len);
     len = htonl(data_len);
@@ -171,7 +171,7 @@ int network_send(int client_socket, struct message_t *msg) {
 	send_bytes = send_all(client_socket, len_buf, sizeof(unsigned));
     if (send_bytes == -1) {
         perror("Error on sending data to client\n");
-        message_t__free_unpacked(recv_msg, NULL);
+        message_t__free_unpacked(message, NULL);
         free(data_buf);
         free(len_buf);
         return -1;
@@ -180,13 +180,13 @@ int network_send(int client_socket, struct message_t *msg) {
 	send_bytes = send_all(client_socket, data_buf, data_len);
 	if (send_bytes == -1) {
 		perror("Error on sending data to client\n");
-		message_t__free_unpacked(recv_msg, NULL);
+		message_t__free_unpacked(message, NULL);
 		free(data_buf);
 		free(len_buf);
 		return -1;
 	}
 
-    message_t__free_unpacked(recv_msg, NULL);
+    message_t__free_unpacked(message, NULL);
 
     free(data_buf);
     free(len_buf);
