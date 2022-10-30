@@ -24,11 +24,7 @@ int tree_skel_init() {
 
 	server_side_tree = tree_create();
 
-	if(server_side_tree == NULL) {
-		return -1;
-	}else {
-		return 0;
-	}
+	return server_side_tree == NULL ? -1 : 0;
 }
 
 /* Liberta toda a memória e recursos alocados pela função tree_skel_init.
@@ -177,16 +173,14 @@ int invoke(struct message_t *msg) {
 
 		if (values == NULL) {
 			return -1;
-
 		}
 
 		message->values = malloc(sizeof(ProtobufCBinaryData) * s);
 		for(int i = 0; i < s; i++) {
 			char* tmp = (char*)(((struct data_t*)values[i])->data);
-			printf("%d\n\n", ((struct data_t*)values[i])->datasize);
 			message->values[i].data = malloc(sizeof(uint8_t*));
 			memcpy(message->values[i].data,(uint8_t *)((void*)tmp),sizeof(uint8_t*));
-			message->values[i].len = sizeof(uint8_t*);
+			message->values[i].len = ((struct data_t*)values[i])->datasize;
 		}
 		message->n_values = s;
 

@@ -18,7 +18,7 @@ Miguel Santos, fc54461
 int recv_all(int sock, uint8_t* buf, unsigned len) {
     int bufsize = len;
 
-    while(len>0) {
+    while(len > 0) {
 
         int res = read(sock, buf, len);
 
@@ -31,6 +31,7 @@ int recv_all(int sock, uint8_t* buf, unsigned len) {
         buf += res;
         len -= res;
     }
+
     return bufsize;
 }
 
@@ -41,9 +42,10 @@ int send_all(int sock, uint8_t *buf, int len) {
 
     int bufsize = len;
 
-    while(len>0) {
+    while(len > 0) {
 
         int res = write(sock, buf, len);
+        
         if(res < 0) {
             if(errno==EINTR) continue;
             perror("write failed");

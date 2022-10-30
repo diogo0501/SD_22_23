@@ -398,7 +398,7 @@ void **rtree_get_values(struct rtree_t *rtree) {
 
         for (int i = 0; i < nrValues; i++) {
             values[i] = (void*)malloc(resp->recv_msg->values[i].len);
-            memcpy(values[i],(void*)(resp->recv_msg->values[i].data),sizeof(resp->recv_msg->values[i].len));
+            memcpy(values[i],(void*)(resp->recv_msg->values[i].data),resp->recv_msg->values[i].len);
         }
 
         values[nrValues] = NULL;

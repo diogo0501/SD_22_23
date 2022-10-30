@@ -146,51 +146,50 @@ struct message_t *network_receive(int client_socket) {
 
 int network_send(int client_socket, struct message_t *msg) {
 
-	unsigned len,lenNet;
-	uint8_t *buf,*buf1;
+	unsigned data_len,len;
+	uint8_t *data_buf,*len_buf;
 	int send_bytes;
 
 	MessageT *recv_msg = msg->recv_msg;
 
-    len = message_t__get_packed_size(recv_msg);
-    buf = malloc(len);
+    data_len = message_t__get_packed_size(recv_msg);
+    data_buf = malloc(data_len);
 
-    if (buf == NULL) {
+    if (data_buf == NULL) {
         perror("Error when mallocing buffer\n");
-        free(buf);
+        free(data_buf);
         close(client_socket);
         return -1;
     }
 
-    message_t__pack(recv_msg, buf);
+    message_t__pack(recv_msg, data_buf);
 
-    buf1 = malloc(len);
-    lenNet = htonl(len);
-    memcpy(buf1, &lenNet, sizeof(unsigned));
+    len_buf = malloc(data_len);
+    len = htonl(data_len);
+    memcpy(len_buf, &len, sizeof(unsigned));
 
-	send_bytes = send_all(client_socket, buf1, sizeof(unsigned));
+	send_bytes = send_all(client_socket, len_buf, sizeof(unsigned));
     if (send_bytes == -1) {
         perror("Error on sending data to client\n");
         message_t__free_unpacked(recv_msg, NULL);
-        free(buf);
-        free(buf1);
+        free(data_buf);
+        free(len_buf);
         return -1;
     }
 
-	//Será que é preciso os dois buffers??
-	send_bytes = send_all(client_socket, buf, len);
+	send_bytes = send_all(client_socket, data_buf, data_len);
 	if (send_bytes == -1) {
 		perror("Error on sending data to client\n");
 		message_t__free_unpacked(recv_msg, NULL);
-		free(buf);
-		free(buf1);
+		free(data_buf);
+		free(len_buf);
 		return -1;
 	}
 
     message_t__free_unpacked(recv_msg, NULL);
 
-    free(buf);
-    free(buf1);
+    free(data_buf);
+    free(len_buf);
 
     return 0;
 }
