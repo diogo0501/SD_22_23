@@ -59,6 +59,8 @@ int network_server_init(short port){
 
 int network_main_loop(int listening_socket){
 
+	//Implementar pseudo codigo do enunciado neste loop incluindo a func poll()
+
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGINT, (sig_t)network_server_close);
 	

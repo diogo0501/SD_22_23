@@ -14,6 +14,7 @@ Miguel Santos, fc54461
 #include <string.h>
 
 struct tree_t *server_side_tree;
+//falta definir a strct request_t - ver enunciado
 
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
@@ -30,6 +31,7 @@ int tree_skel_init() {
 /* Liberta toda a memória e recursos alocados pela função tree_skel_init.
  */
 void tree_skel_destroy() {
+	
 	tree_destroy(server_side_tree);
 }
 
@@ -197,5 +199,9 @@ int invoke(struct message_t *msg) {
 	message->opcode = MESSAGE_T__OPCODE__OP_BAD;
 	message->c_type = MESSAGE_T__C_TYPE__CT_BAD;
 
+	return 0;
+}
+
+int verify(int op_n) {
 	return 0;
 }

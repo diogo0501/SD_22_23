@@ -415,4 +415,8 @@ void **rtree_get_values(struct rtree_t *rtree) {
         free(resp);
         return NULL;
     }
+
+    int rtree_verify(struct rtree_t *rtree, int op_n){
+        return 0;
+    }
 }
