@@ -416,3 +416,45 @@ void **rtree_get_values(struct rtree_t *rtree) {
         return NULL;
     }
 }
+
+/* Verifica se a operação identificada por op_n foi executada.
+*/
+int rtree_verify(struct rtree_t *rtree, int op_n) {
+    
+    if(rtree == NULL) {
+        return -1;
+    }
+
+    MessageT *msg = malloc(sizeof(MessageT));
+    message_t__init(msg);
+    msg->opcode = MESSAGE_T__OPCODE__OP_HEIGHT;
+    msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+    msg->datalength = 0;
+    
+    struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
+	msg_wrapper->recv_msg = msg;
+    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+
+    if(resp == NULL || resp->recv_msg == NULL) {
+        message_t__free_unpacked(resp->recv_msg, NULL);
+        free(resp);
+        free(msg_wrapper);
+        free(msg);
+        return -1;
+    }
+
+    if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_RESULT || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_HEIGHT + 1) {
+        int data_size = resp->recv_msg->datalength;
+        message_t__free_unpacked(resp->recv_msg, NULL);
+        free(resp);
+        free(msg_wrapper);
+        free(msg);
+        return data_size;  
+    } else {
+        message_t__free_unpacked(resp->recv_msg, NULL);
+        free(resp);
+        free(msg_wrapper);
+        free(msg);
+        return -1;
+    }
+}

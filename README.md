@@ -9,7 +9,7 @@ alterar o ficheiro tree_skel.h , adicionado aos includes: #include "message-priv
 Para correr:
 - Verificar que existem pastas com os nomes "binary", "lib" e "object" dentro da pasta grupo47.
 - Dentro da pasta grupo47, correr o comando make no terminal (que vai compilar todos os ficheiros, inclusive criar a library do cliente).
-- Abrir dois terminais na pasta binary, um para o cliente com o comando './tree_client hostname:port' e outro para o servidor com o comando './tree_server port'.
+- Abrir dois terminais na pasta binary, um para o cliente com o comando './tree-client hostname:port' e outro para o servidor com o comando './tree-server port'.
 
 
 

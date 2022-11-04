@@ -199,3 +199,9 @@ int invoke(struct message_t *msg) {
 
 	return 0;
 }
+
+/* Verifica se a operação identificada por op_n foi executada.
+*/
+int verify(int op_n) {
+	return 0;
+}
