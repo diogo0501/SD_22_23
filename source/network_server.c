@@ -13,6 +13,9 @@ Miguel Santos, fc54461
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <poll.h>
+
+#define MAX_SOCKETS 40 //Mock max client. Im not sure if there is a limit or what that limit is
 
 int server_sock;
 
@@ -59,46 +62,88 @@ int network_server_init(short port){
 
 int network_main_loop(int listening_socket){
 
+	int connsockfd, nfds, kfds;
 	//Implementar pseudo codigo do enunciado neste loop incluindo a func poll()
+	struct pollfd desc_set[MAX_SOCKETS];
+
+	for (int i = 0; i < MAX_SOCKETS; i++) {
+		desc_set[i].fd = -1;
+	}
+
+	desc_set[0].fd = listening_socket;
+    desc_set[0].events = POLLIN;
+
+	nfds = 1;
 
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGINT, (sig_t)network_server_close);
 	
-	int connsockfd;
 	struct sockaddr_in client_addr;
 	socklen_t client_len = sizeof((struct addrsock *)&client_addr);
 	struct message_t *recv_msg_str;
 
-	while ((connsockfd = accept(listening_socket,(struct sockaddr *) &client_addr, &client_len)) != -1) {
+	//criar struct pollfd para o descset
+	//sockets chegam ao limite de clientes
+
+	while ((kfds = poll(desc_set, nfds, 10)) >= 0) {
 		
-		recv_msg_str = network_receive(connsockfd);
+		if(kfds > 0) {
+			if((desc_set[0].revents & POLLIN) && (nfds < MAX_SOCKETS)) {
+				if((desc_set[nfds].fd = accept(desc_set[0].fd,(struct sockaddr *) &client_addr, &client_len)) > 0) {
+					desc_set[nfds].events = POLLIN;
+					printf("%d\n",desc_set[nfds].fd);
+					nfds++;
+				}
+			}
 
-		if(recv_msg_str == NULL) {
-			free(recv_msg_str);
-			close(connsockfd);	
-			continue;
+			for(int i = 1; i < nfds; i++) {
+				
+				if(desc_set[i].fd == -1) {
+					continue;
+				}
+
+				if(desc_set[i].revents & POLLIN) {
+					recv_msg_str = network_receive(desc_set[i].fd);
+
+					if(recv_msg_str == NULL) {
+						free(recv_msg_str);
+						close(desc_set[i].fd);
+						desc_set[i].fd = -1;
+						continue;	
+					}
+
+					int op = invoke(recv_msg_str);
+
+					int response;
+
+					if(op == -1) {
+
+						recv_msg_str->recv_msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
+						recv_msg_str->recv_msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+						recv_msg_str->recv_msg->datalength = 0;
+
+						response = network_send(desc_set[i].fd,recv_msg_str);
+
+					} else {
+
+						response = network_send(desc_set[i].fd,recv_msg_str);
+					}
+					
+					free(recv_msg_str);
+					close(desc_set[i].fd);
+					desc_set[i].fd = -1;
+					continue;
+				}
+				if(desc_set[i].events == POLL_HUP || 
+					desc_set[i].events == POLL_ERR ) {
+						close(desc_set[i].fd);
+						desc_set[i].fd = -1;
+						continue;
+
+				}
+			}
 		}
-
-		int op = invoke(recv_msg_str);
-
-		int response;
-
-		if(op == -1) {
-
-			recv_msg_str->recv_msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
-			recv_msg_str->recv_msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-			recv_msg_str->recv_msg->datalength = 0;
-
-			response = network_send(connsockfd,recv_msg_str);
-
-		} else {
-
-			response = network_send(connsockfd,recv_msg_str);
-		}
-		
-		free(recv_msg_str);
-
-		close(connsockfd);
+			
 	}
 
 	return 0;
