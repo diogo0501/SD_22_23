@@ -427,9 +427,9 @@ int rtree_verify(struct rtree_t *rtree, int op_n) {
 
     MessageT *msg = malloc(sizeof(MessageT));
     message_t__init(msg);
-    msg->opcode = MESSAGE_T__OPCODE__OP_HEIGHT;
-    msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-    msg->datalength = 0;
+    msg->opcode = MESSAGE_T__OPCODE__OP_VERIFY;
+    msg->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
+    msg->datalength = op_n;
     
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
@@ -443,7 +443,7 @@ int rtree_verify(struct rtree_t *rtree, int op_n) {
         return -1;
     }
 
-    if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_RESULT || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_HEIGHT + 1) {
+    if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_RESULT || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_VERIFY + 1) {
         int data_size = resp->recv_msg->datalength;
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);

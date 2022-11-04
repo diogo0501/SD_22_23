@@ -9,11 +9,13 @@ Miguel Santos, fc54461
 #include "sdmessage.pb-c.h"
 #include "message-private.h"
 #include "tree_skel.h"
+#include "server_structs-private.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct tree_t *server_side_tree;
+struct op_proc *ops_info;
 
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
@@ -193,6 +195,15 @@ int invoke(struct message_t *msg) {
 		return 0;
 	}
 
+	if(message->opcode == MESSAGE_T__OPCODE__OP_VERIFY && message->c_type == MESSAGE_T__C_TYPE__CT_RESULT) {
+		
+		message->opcode = MESSAGE_T__OPCODE__OP_VERIFY + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
+		int v = verify((int)message->datalength);
+		message->datalength = v;
+		return 0;
+	}
+
 	message->datalength = 0;
 	message->opcode = MESSAGE_T__OPCODE__OP_BAD;
 	message->c_type = MESSAGE_T__C_TYPE__CT_BAD;
@@ -203,5 +214,9 @@ int invoke(struct message_t *msg) {
 /* Verifica se a operação identificada por op_n foi executada.
 */
 int verify(int op_n) {
-	return 0;
+	if(ops_info->max_proc >= op_n) {
+		return 1;
+	} else {
+		return 0;
+	}
 }

@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "socket.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "tree_skel.h": "c"
     }
 }
