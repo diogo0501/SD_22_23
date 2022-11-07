@@ -37,4 +37,6 @@ int network_send(int client_socket, struct message_t *msg);
  */
 int network_server_close();
 
+void *request_handler(void *clientSocket);
+
 #endif

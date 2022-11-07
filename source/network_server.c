@@ -14,8 +14,9 @@ Miguel Santos, fc54461
 #include <signal.h>
 #include <string.h>
 #include <poll.h>
+#include <pthread.h>
 
-#define MAX_SOCKETS 40 //Mock max client. Im not sure if there is a limit or what that limit is
+#define MAX_SOCKETS 4 //Mock max client. Im not sure if there is a limit or what that limit is
 
 int server_sock;
 
@@ -80,7 +81,7 @@ int network_main_loop(int listening_socket){
 	
 	struct sockaddr_in client_addr;
 	socklen_t client_len = sizeof((struct addrsock *)&client_addr);
-	struct message_t *recv_msg_str;
+	
 
 	//criar struct pollfd para o descset
 	//sockets chegam ao limite de clientes
@@ -103,47 +104,37 @@ int network_main_loop(int listening_socket){
 				}
 
 				if(desc_set[i].revents & POLLIN) {
-					recv_msg_str = network_receive(desc_set[i].fd);
-
-					if(recv_msg_str == NULL) {
-						free(recv_msg_str);
-						close(desc_set[i].fd);
-						desc_set[i].fd = -1;
-						continue;	
+					pthread_t thread;
+                    pthread_attr_t thread_attr;
+                    int ret_thread;
+                    ret_thread = pthread_attr_init(&thread_attr);
+                    ret_thread = pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
+					//Here comes pthread and all that
+					int *sock_thread = malloc(sizeof(int));
+					memcpy(sock_thread,&(desc_set[i].fd), sizeof(int));
+					if(ret_thread == 0) {
+						printf("%d\n",desc_set[i].fd);
+						pthread_create(&thread,&thread_attr,request_handler,sock_thread);
 					}
-
-					int op = invoke(recv_msg_str);
-
-					int response;
-
-					if(op == -1) {
-
-						recv_msg_str->recv_msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
-						recv_msg_str->recv_msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-						recv_msg_str->recv_msg->datalength = 0;
-
-						response = network_send(desc_set[i].fd,recv_msg_str);
-
-					} else {
-
-						response = network_send(desc_set[i].fd,recv_msg_str);
+					else {
+						close(*sock_thread);
+						free(sock_thread);
+						continue;
 					}
-					
-					free(recv_msg_str);
+					pthread_attr_destroy(&thread_attr);
+					continue;
+				}
+				if(desc_set[i].events == POLL_HUP ||
+					desc_set[i].events == POLL_ERR ) {
 					close(desc_set[i].fd);
 					desc_set[i].fd = -1;
 					continue;
-				}
-				if(desc_set[i].events == POLL_HUP || 
-					desc_set[i].events == POLL_ERR ) {
-						close(desc_set[i].fd);
-						desc_set[i].fd = -1;
-						continue;
 
 				}
+				//desc_set[i].fd = -1;
 			}
+
 		}
-			
 	}
 
 	return 0;
@@ -157,7 +148,7 @@ struct message_t *network_receive(int client_socket) {
 
 	recv_bytes = recv_all(client_socket, (uint8_t *)&len, sizeof(unsigned));
 
-    if (recv_bytes == -1) {
+    if (recv_bytes == -1) {struct message_t *recv_msg_str;
         perror("Error on receiving data from the client\n");
         close(client_socket);
         return NULL;
@@ -207,7 +198,7 @@ int network_send(int client_socket, struct message_t *msg) {
         free(data_buf);
         close(client_socket);
         return -1;
-    }
+    }struct message_t *recv_msg_str;
 
     message_t__pack(message, data_buf);
 
@@ -225,7 +216,7 @@ int network_send(int client_socket, struct message_t *msg) {
     }
 
 	send_bytes = send_all(client_socket, data_buf, data_len);
-	if (send_bytes == -1) {
+	if (send_bytes == -1) {struct message_t *recv_msg_str;
 		perror("Error on sending data to client\n");
 		message_t__free_unpacked(message, NULL);
 		free(data_buf);
@@ -239,6 +230,52 @@ int network_send(int client_socket, struct message_t *msg) {
     free(len_buf);
 
     return 0;
+}
+
+void *request_handler(void *clientSocket) {
+
+	int socketcpy = *((int*)(clientSocket));
+	free(clientSocket);
+
+	struct message_t *recv_msg_str;
+
+	while(1) {
+
+		recv_msg_str = network_receive(socketcpy);
+
+		if(recv_msg_str == NULL) {
+			free(recv_msg_str);
+			break;
+		}
+
+		int op = invoke(recv_msg_str);
+
+		int response;
+
+		if(op == -1) {
+
+			recv_msg_str->recv_msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
+			recv_msg_str->recv_msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+			recv_msg_str->recv_msg->datalength = 0;
+
+			response = network_send(socketcpy,recv_msg_str);
+
+		} else {
+
+			response = network_send(socketcpy,recv_msg_str);
+		}
+
+		if(response == -1) {
+			break;
+		}
+
+	}
+
+	close(socketcpy);
+	
+	free(recv_msg_str);
+
+	return 0;
 }
 
 int network_server_close() {
