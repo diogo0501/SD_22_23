@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-
+	tree_skel_init(n_threads);
 	socket = network_server_init((short) socket_num);
 
 	if(socket == -1) {
@@ -56,6 +56,7 @@ int main(int argc, char **argv) {
 	}
 
 	network_server_close();
+	tree_skel_destroy();
 
 	return 0;
 

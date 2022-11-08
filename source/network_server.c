@@ -56,7 +56,7 @@ int network_server_init(short port){
 
 	server_sock = sockfd;
 	
-	tree_skel_init();
+	//tree_skel_init();
 	
 	return sockfd;
 }
@@ -81,7 +81,7 @@ int network_main_loop(int listening_socket){
 	
 	struct sockaddr_in client_addr;
 	socklen_t client_len = sizeof((struct addrsock *)&client_addr);
-	
+	struct message_t *recv_msg_str;
 
 	//criar struct pollfd para o descset
 	//sockets chegam ao limite de clientes
@@ -90,11 +90,17 @@ int network_main_loop(int listening_socket){
 		
 		if(kfds > 0) {
 			if((desc_set[0].revents & POLLIN) && (nfds < MAX_SOCKETS)) {
-				if((desc_set[nfds].fd = accept(desc_set[0].fd,(struct sockaddr *) &client_addr, &client_len)) > 0) {
-					desc_set[nfds].events = POLLIN;
-					printf("%d\n",desc_set[nfds].fd);
-					nfds++;
+				for(int i = 1; i < MAX_SOCKETS; i++) {
+					if(desc_set[i].fd == -1) {
+						if((desc_set[i].fd = accept(desc_set[0].fd,(struct sockaddr *) &client_addr, &client_len)) > 0) {
+							desc_set[i].events = POLLIN;
+							//printf("%d\n",desc_set[i].fd);
+							nfds++;
+							break;
+						}
+					}
 				}
+				
 			}
 
 			for(int i = 1; i < nfds; i++) {
@@ -104,38 +110,51 @@ int network_main_loop(int listening_socket){
 				}
 
 				if(desc_set[i].revents & POLLIN) {
-					pthread_t thread;
-                    pthread_attr_t thread_attr;
-                    int ret_thread;
-                    ret_thread = pthread_attr_init(&thread_attr);
-                    ret_thread = pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
-					//Here comes pthread and all that
-					int *sock_thread = malloc(sizeof(int));
-					memcpy(sock_thread,&(desc_set[i].fd), sizeof(int));
-					if(ret_thread == 0) {
-						printf("%d\n",desc_set[i].fd);
-						pthread_create(&thread,&thread_attr,request_handler,sock_thread);
+					recv_msg_str = network_receive(desc_set[i].fd);
+
+					if(recv_msg_str == NULL) {
+						free(recv_msg_str);
+						close(desc_set[i].fd);
+						desc_set[i].fd = -1;
+						continue;	
 					}
-					else {
-						close(*sock_thread);
-						free(sock_thread);
-						continue;
+
+					int op = invoke(recv_msg_str);
+
+					int response;
+
+					if(op == -1) {
+
+						recv_msg_str->recv_msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
+						recv_msg_str->recv_msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+						recv_msg_str->recv_msg->datalength = 0;
+
+						response = network_send(desc_set[i].fd,recv_msg_str);
+
+					} else {
+
+						response = network_send(desc_set[i].fd,recv_msg_str);
 					}
-					pthread_attr_destroy(&thread_attr);
-					continue;
-				}
-				if(desc_set[i].events == POLL_HUP ||
-					desc_set[i].events == POLL_ERR ) {
+					
+					free(recv_msg_str);
 					close(desc_set[i].fd);
 					desc_set[i].fd = -1;
+					nfds--;
 					continue;
+				}
+				if(desc_set[i].events == POLL_HUP || 
+					desc_set[i].events == POLL_ERR ) {
+						close(desc_set[i].fd);
+						desc_set[i].fd = -1;
+						continue;
 
 				}
-				//desc_set[i].fd = -1;
 			}
-
 		}
+			
 	}
+
+	return 0;
 
 	return 0;
 }
@@ -232,55 +251,9 @@ int network_send(int client_socket, struct message_t *msg) {
     return 0;
 }
 
-void *request_handler(void *clientSocket) {
-
-	int socketcpy = *((int*)(clientSocket));
-	free(clientSocket);
-
-	struct message_t *recv_msg_str;
-
-	while(1) {
-
-		recv_msg_str = network_receive(socketcpy);
-
-		if(recv_msg_str == NULL) {
-			free(recv_msg_str);
-			break;
-		}
-
-		int op = invoke(recv_msg_str);
-
-		int response;
-
-		if(op == -1) {
-
-			recv_msg_str->recv_msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
-			recv_msg_str->recv_msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-			recv_msg_str->recv_msg->datalength = 0;
-
-			response = network_send(socketcpy,recv_msg_str);
-
-		} else {
-
-			response = network_send(socketcpy,recv_msg_str);
-		}
-
-		if(response == -1) {
-			break;
-		}
-
-	}
-
-	close(socketcpy);
-	
-	free(recv_msg_str);
-
-	return 0;
-}
-
 int network_server_close() {
 	
-	tree_skel_destroy();
+	//tree_skel_destroy();
 	
 	close(server_sock);
 	

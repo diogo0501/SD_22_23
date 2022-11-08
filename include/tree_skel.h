@@ -4,6 +4,14 @@
 #include "sdmessage.pb-c.h"
 #include "tree.h"
 
+struct request_t {
+    int op_n; //numero da op
+    int op; // 0 se for um del, 1 se for put
+    char* key;
+    char* data; //NULL || data
+    struct request_t *ant;
+    struct request_t *succ;
+};
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
  * função invoke(). 
@@ -11,7 +19,7 @@
  */
 
 //agr tem um param int N 
-int tree_skel_init();
+int tree_skel_init(int N);
 
 /* Liberta toda a memória e recursos alocados pela função tree_skel_init.
  */

@@ -14,6 +14,9 @@ Miguel Santos, fc54461
 #include <string.h>
 
 struct tree_t *server_side_tree;
+struct request_t *queue_head;
+int n_threads;
+//pthreads pthreads[N];
 //falta definir a strct request_t - ver enunciado
 
 /* Inicia o skeleton da árvore.
@@ -21,7 +24,10 @@ struct tree_t *server_side_tree;
  * função invoke(). 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
-int tree_skel_init() {
+
+int tree_skel_init(int N) {
+
+	nthreads = N;
 
 	server_side_tree = tree_create();
 
@@ -195,6 +201,15 @@ int invoke(struct message_t *msg) {
 		return 0;
 	}
 
+	if(message->opcode == MESSAGE_T__OPCODE__OP_VERIFY && message->c_type == MESSAGE_T__C_TYPE__CT_RESULT) {
+
+		message->opcode = MESSAGE_T__OPCODE__OP_VERIFY + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
+		int v = verify((int)message->datalength);
+		message->datalength = v;
+		return 0;
+	}
+
 	message->datalength = 0;
 	message->opcode = MESSAGE_T__OPCODE__OP_BAD;
 	message->c_type = MESSAGE_T__C_TYPE__CT_BAD;
@@ -203,5 +218,9 @@ int invoke(struct message_t *msg) {
 }
 
 int verify(int op_n) {
-	return 0;
+	return (ops_info->max_proc >= op_n) ? 1 : 0;
+}
+
+void *process_request(void *params) {
+
 }
