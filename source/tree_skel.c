@@ -15,6 +15,7 @@ Miguel Santos, fc54461
 
 struct tree_t *server_side_tree;
 struct request_t *queue_head;
+struct op_proc *ops_info;
 int n_threads;
 //pthreads pthreads[N];
 //falta definir a strct request_t - ver enunciado
@@ -27,7 +28,7 @@ int n_threads;
 
 int tree_skel_init(int N) {
 
-	nthreads = N;
+	n_threads = N;
 
 	server_side_tree = tree_create();
 

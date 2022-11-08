@@ -12,6 +12,11 @@ struct request_t {
     struct request_t *ant;
     struct request_t *succ;
 };
+
+struct op_proc {
+    int max_proc;
+    int *in_progress;
+};
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
  * função invoke(). 

@@ -178,6 +178,26 @@ int main(int argc, char **argv) {
 					free(values);
 
 				}
+				else if(tok != NULL & strcmp(tok,"verify") == 0) {
+					tok = strtok(NULL, " ");
+
+					if(tok != NULL) {
+						int status = rtree_verify(rtree,tok);
+
+						if(status == -1) {
+							printf("There has been an error on verifying the operation\n");
+						}
+						else if(status == 0) {
+							printf("Writting operation was not performed yet\n");
+						}
+						else if (status == 1) {
+							printf("Writting operation was performed\n");
+						}
+					}
+					else{
+						printf("Invalid input format required to execute operation 'verify'\n");
+					}
+				}
 				else if(tok != NULL & strcmp(tok, "quit") == 0) {
 
 					free(op_args);
