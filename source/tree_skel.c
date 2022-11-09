@@ -15,6 +15,8 @@ Miguel Santos, fc54461
 #include <pthread.h>
 
 struct tree_t *server_side_tree;
+
+//Vai ter acesso concorrencial tanto a queue_head como os seus sucessores
 struct request_t *queue_head;
 struct op_proc *ops_info;
 int n_threads;
@@ -36,7 +38,15 @@ int tree_skel_init(int N) {
 	ops_info->max_proc = 0;
 	ops_info->in_progress = malloc(sizeof(int) * n_threads);
 
-	last_assigned = 0;
+	for(int i = 0; i < n_threads; i++) {
+		ops_info->in_progress[i] = 0;
+	}
+
+	last_assigned = 1;
+
+	//Qual sera o numero de op da head?? 0??
+	queue_head = malloc(sizeof(struct request_t));
+	queue_head->succ = NULL;
 
 	pthread_t thread[n_threads];
 	int thread_param[n_threads];
@@ -63,6 +73,8 @@ int tree_skel_init(int N) {
 /* Liberta toda a memória e recursos alocados pela função tree_skel_init.
  */
 void tree_skel_destroy() {
+
+	//dar free em todas as structs 
 	
 	tree_destroy(server_side_tree);
 }
@@ -85,6 +97,30 @@ int invoke(struct message_t *msg) {
 			return -1;
 		}
 
+		struct data_t *data = data_create2(message->entry->data.len, (void*)message->entry->data.data);
+		struct request_t *new_req = malloc(sizeof(struct request_t));
+		new_req->op_n = last_assigned;
+		new_req->op = 1;
+		new_req->key = message->entry->key;
+		new_req->data = data;
+		new_req->succ = NULL;
+
+		struct request_t *tmp_req = malloc(sizeof(struct request_t));
+		memcpy(tmp_req,queue_head, sizeof(struct request_t));
+
+		while(tmp_req->succ != NULL){
+			tmp_req = tmp_req->succ;
+		}
+
+		tmp_req->succ = new_req;
+
+		for(int i = 0; i < n_threads; i++) {
+			if(ops_info->in_progress[i] == 0) {
+				ops_info->in_progress[i] == last_assigned;
+				break;
+			}
+		}
+		
 		message->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
 		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
 		message->datalength = last_assigned;
@@ -149,10 +185,37 @@ int invoke(struct message_t *msg) {
 		// 	return 0;
 		// }
 
+		//tem de criar uma request com o valor del
+
+		struct request_t *new_req = malloc(sizeof(struct request_t));
+		new_req->op_n = last_assigned;
+		new_req->op = 0;
+		new_req->key = message->data.data;
+		new_req->data = NULL;
+		new_req->succ = NULL;
+
+		struct request_t *tmp_req = malloc(sizeof(struct request_t));
+		memcpy(tmp_req,queue_head, sizeof(struct request_t));
+
+		while(tmp_req->succ != NULL){
+			tmp_req = tmp_req->succ;
+		}
+
+		//ao aceder à fila tem de haver um controlo concorrencial tanto da main thread como das threads secundarias
+		tmp_req->succ = new_req;
+
+		for(int i = 0; i < n_threads; i++) {
+			if(ops_info->in_progress[i] == 0) {
+				ops_info->in_progress[i] == last_assigned;
+				break;
+			}
+		}
+
 		message->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
 		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
 		message->datalength = last_assigned;
 		last_assigned++;
+
 		return 0;
 	}
 
@@ -253,9 +316,12 @@ int invoke(struct message_t *msg) {
 }
 
 int verify(int op_n) {
+
+	//acho que estao errado pois o id pode nao ser maior que o max_proc mas ja ter sido concluido
 	return (ops_info->max_proc >= op_n) ? 1 : 0;
 }
 
 void *process_request(void *params) {
-
+	//Vai buscar todas as requests existentes e assim que acaba liberta-las
+	//param pode ser null
 }

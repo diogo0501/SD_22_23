@@ -17,6 +17,7 @@ Miguel Santos, fc54461
 #include <pthread.h>
 
 #define MAX_SOCKETS 4 //Mock max client. Im not sure if there is a limit or what that limit is
+#define TIME_OUT 10
 
 int server_sock;
 
@@ -55,9 +56,7 @@ int network_server_init(short port){
 	printf("Socket listening...\n");
 
 	server_sock = sockfd;
-	
-	//tree_skel_init();
-	
+		
 	return sockfd;
 }
 
@@ -86,7 +85,7 @@ int network_main_loop(int listening_socket){
 	//criar struct pollfd para o descset
 	//sockets chegam ao limite de clientes
 
-	while ((kfds = poll(desc_set, nfds, 10)) >= 0) {
+	while ((kfds = poll(desc_set, nfds, TIME_OUT)) >= 0) {
 		
 		if(kfds > 0) {
 			if((desc_set[0].revents & POLLIN) && (nfds < MAX_SOCKETS)) {
@@ -94,7 +93,6 @@ int network_main_loop(int listening_socket){
 					if(desc_set[i].fd == -1) {
 						if((desc_set[i].fd = accept(desc_set[0].fd,(struct sockaddr *) &client_addr, &client_len)) > 0) {
 							desc_set[i].events = POLLIN;
-							//printf("%d\n",desc_set[i].fd);
 							nfds++;
 							break;
 						}
@@ -103,6 +101,9 @@ int network_main_loop(int listening_socket){
 				
 			}
 
+			//por existir este for os clientes que se conectam por ultimo tem de esperar pela resposta do servidor aos
+			//clientes anteriores para conseguir receber a sua resposta. Isto acontece mesmo quando a resposta deve ser
+			//imediata como é o caso de operações de leitura.
 			for(int i = 1; i < nfds; i++) {
 				
 				if(desc_set[i].fd == -1) {
@@ -252,9 +253,7 @@ int network_send(int client_socket, struct message_t *msg) {
 }
 
 int network_server_close() {
-	
-	//tree_skel_destroy();
-	
+		
 	close(server_sock);
 	
 	printf("Abnormal termination of the process! The socket is now closed\n");

@@ -3,13 +3,13 @@
 
 #include "sdmessage.pb-c.h"
 #include "tree.h"
+#include "message-private.h"
 
 struct request_t {
     int op_n; //numero da op
     int op; // 0 se for um del, 1 se for put
     char* key;
-    char* data; //NULL || data
-    struct request_t *ant;
+    struct data_t *data; //NULL || data
     struct request_t *succ;
 };
 
