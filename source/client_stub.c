@@ -74,6 +74,8 @@ int rtree_disconnect(struct rtree_t *rtree) {
  */
 int rtree_put(struct rtree_t *rtree, struct entry_t *entry) {
 
+    int last_assigned;
+    
     if(rtree == NULL || entry == NULL) {
         return -1;
     }
@@ -102,13 +104,14 @@ int rtree_put(struct rtree_t *rtree, struct entry_t *entry) {
         return -1;
     }
 
-    if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_NONE || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_PUT + 1) {
+    if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_RESULT || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_PUT + 1) {
+        last_assigned = resp->recv_msg->datalength;
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);
         free(msg_wrapper);
         free(msg->entry);
         free(msg);
-        return 0;
+        return last_assigned;
     } else {
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);
@@ -185,6 +188,7 @@ struct data_t *rtree_get(struct rtree_t *rtree, char *key) {
  */
 int rtree_del(struct rtree_t *rtree, char *key) {
 
+    int last_assigned;
     if(rtree == NULL || key == NULL) {
         return -1;
     }
@@ -213,12 +217,13 @@ int rtree_del(struct rtree_t *rtree, char *key) {
         return -1;
     }
 
-    if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_NONE || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_DEL + 1) {
+    if(resp->recv_msg->c_type == MESSAGE_T__C_TYPE__CT_RESULT || resp->recv_msg->opcode == MESSAGE_T__OPCODE__OP_DEL + 1) {
+        last_assigned = resp->recv_msg->datalength;
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);
         free(msg);
         free(msg_wrapper);
-        return 0;
+        return last_assigned;
     } else {
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);
@@ -416,6 +421,7 @@ void **rtree_get_values(struct rtree_t *rtree) {
         return NULL;
     }
 }
+
 int rtree_verify(struct rtree_t *rtree, int op_n){
     if(rtree == NULL) {
         return -1;

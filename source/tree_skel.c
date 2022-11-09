@@ -12,13 +12,14 @@ Miguel Santos, fc54461
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 struct tree_t *server_side_tree;
 struct request_t *queue_head;
 struct op_proc *ops_info;
 int n_threads;
-//pthreads pthreads[N];
-//falta definir a strct request_t - ver enunciado
+int last_assigned;
+int *ret_val;
 
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
@@ -29,6 +30,30 @@ int n_threads;
 int tree_skel_init(int N) {
 
 	n_threads = N;
+
+	ops_info = malloc(sizeof(struct op_proc));
+
+	ops_info->max_proc = 0;
+	ops_info->in_progress = malloc(sizeof(int) * n_threads);
+
+	last_assigned = 0;
+
+	pthread_t thread[n_threads];
+	int thread_param[n_threads];
+
+	for(int i = 0; i < n_threads; i++) {
+		thread_param[i] = i+1;
+		if(pthread_create(&thread[i],NULL, &process_request,(void*) &thread_param[i]) != 0){
+			printf("Thread %d não criada.\n",i);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	//Falta perceber se elas executam logo, como fazer com que esperem pela fila produtor/consumidor e onde e como vamos
+	// fazer join delas
+
+	//Falta implementar a queue. Ainda nao sei como irei faze lo
+
 
 	server_side_tree = tree_create();
 
@@ -61,23 +86,26 @@ int invoke(struct message_t *msg) {
 		}
 
 		message->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
-		message->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-		message->datalength = 0;
+		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
+		message->datalength = last_assigned;
+		last_assigned++;
 
-		struct data_t *data = data_create2(message->entry->data.len, (void*)message->entry->data.data);
+		return 0;
 
-		struct entry_t *entry = entry_create(message->entry->key, data);
+		// struct data_t *data = data_create2(message->entry->data.len, (void*)message->entry->data.data);
 
-		free(entry);
+		// struct entry_t *entry = entry_create(message->entry->key, data);
 
-		int status = tree_put(server_side_tree, message->entry->key, data);
+		// free(entry);
+
+		// int status = tree_put(server_side_tree, message->entry->key, data);
 		
-		if(status == -1) {
-			return -1;
-		} else {
-			free(data);
-			return 0;
-		}
+		// if(status == -1) {
+		// 	return -1;
+		// } else {
+		// 	free(data);
+		// 	return 0;
+		// }
 	}
 
 	if(message->opcode == MESSAGE_T__OPCODE__OP_GET && message->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
@@ -109,17 +137,23 @@ int invoke(struct message_t *msg) {
 
 	if(message->opcode == MESSAGE_T__OPCODE__OP_DEL && message->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
 
-		int status = tree_del(server_side_tree, (char*) message->data.data);
+		//int status = tree_del(server_side_tree, (char*) message->data.data);
 
-		if(status == -1) {
-			return -1;
-		} else{
-			message->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
-			message->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-			message->datalength = 0;
+		// if(status == -1) {
+		// 	return -1;
+		// } else{
+		// 	message->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
+		// 	message->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+		// 	message->datalength = 0;
 
-			return 0;
-		}
+		// 	return 0;
+		// }
+
+		message->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
+		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
+		message->datalength = last_assigned;
+		last_assigned++;
+		return 0;
 	}
 
 	if(message->opcode == MESSAGE_T__OPCODE__OP_SIZE && message->c_type == MESSAGE_T__C_TYPE__CT_NONE) {

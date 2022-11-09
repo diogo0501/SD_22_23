@@ -72,8 +72,13 @@ int main(int argc, char **argv) {
 							struct data_t *data = data_create2(strlen(str) + 1, (void*)str);
 							struct entry_t *entry = entry_create(entry_key, data);
 
-							if(rtree_put(rtree, entry) != 0) {
+							int status = rtree_put(rtree,entry);
+
+							if(status == -1) {
 								printf("Error trying to execute operation 'put'\n");
+							}
+							else {
+								printf("Last assigned: %d\n",status);
 							}
 
 							entry_destroy(entry);
@@ -120,10 +125,12 @@ int main(int argc, char **argv) {
 						char *entry_key = malloc(strlen(tok) + 1);
 						strcpy(entry_key, tok);
 
-						if(rtree_del(rtree, entry_key) == 0) {
-							printf("Data with given key has been removed from the tree\n");
+						int status = rtree_del(rtree,entry_key);
+
+						if(status == -1) {
+							printf("Error trying to execute operation 'del'\n");
 						} else {
-							printf("Error / Couldnt delete data with given key from the tree\n");
+							printf("Last assigned: %d\n",status);
 						}
 						free(entry_key);
 						invalid_op = 0;
@@ -182,7 +189,7 @@ int main(int argc, char **argv) {
 					tok = strtok(NULL, " ");
 
 					if(tok != NULL) {
-						int status = rtree_verify(rtree,tok);
+						int status = rtree_verify(rtree,atoi(tok));
 
 						if(status == -1) {
 							printf("There has been an error on verifying the operation\n");
