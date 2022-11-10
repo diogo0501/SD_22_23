@@ -13,9 +13,12 @@ Miguel Santos, fc54461
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 struct tree_t *server_side_tree;
 struct op_proc *ops_info;
+struct request_t *queue_head;
+pthread_mutex_t lock;
 
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
@@ -219,4 +222,30 @@ int verify(int op_n) {
 	} else {
 		return 0;
 	}
+}
+
+/* Função da thread secundária que vai processar pedidos de escrita.
+*/
+void *process_request(void *params) {
+
+ 	int *myid = (int *)params;
+
+    pthread_mutex_lock(&lock);
+	if(queue_head != NULL) {
+		if(queue_head->op == 0) {
+			int status = tree_del(server_side_tree, queue_head->key);
+		}
+		if(queue_head->op == 1) {
+			struct data_t *data = data_create2(queue_head->data->datasize, queue_head->data->data);
+
+			struct entry_t *entry = entry_create(queue_head->key, data);
+
+			free(entry);
+
+			int status = tree_put(server_side_tree, queue_head->key, data);
+		}
+	}
+	queue_head = queue_head->next_request;
+    pthread_mutex_unlock(&lock);
+	return NULL;
 }
