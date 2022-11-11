@@ -138,11 +138,15 @@ int invoke(struct message_t *msg) {
 		struct request_t *new_req = malloc(sizeof(struct request_t));
 		new_req->op_n = last_assigned;
 		new_req->op = 1;
-		new_req->key = message->entry->key;
+		new_req->key = (char*)(message->entry->key);
 		new_req->data = data;
 		new_req->succ = NULL;
 
+		printf("Before add : Req {%d , %d , %s, %s}\n", new_req->op_n, new_req->op, new_req->key, (char*)(new_req->data->data));
+
 		queue_add_request(new_req);
+
+		printf("After add : Req {%d , %d , %s, %s}\n", new_req->op_n, new_req->op, new_req->key, (char*)(new_req->data->data));
 		
 
 		for(int i = 0; i < n_threads; i++) {
@@ -318,12 +322,15 @@ int verify(int op_n) {
 void *process_request(void *params) {
 
 	if(params == NULL) {
-		exit(EXIT_FAILURE);
+		//exit(EXIT_FAILURE);
+		return NULL;
 	}
 
 	int *myid = (int *)params;
 
     struct request_t *req = queue_get_request();
+
+	printf("Inside thread : Req {%d , %d , %s, %s}\n", req->op_n, req->op, req->key, (char*)(req->data->data));
 
 	if(req->op == 0) {
 		printf("Thread %d started del\n",*myid);
@@ -334,11 +341,13 @@ void *process_request(void *params) {
 
 		struct data_t *data = data_create2(req->data->datasize, req->data->data);
 
-		struct entry_t *entry = entry_create(req->key, data);
+		//struct entry_t *entry = entry_create(req->key, data);
 
-		free(entry);
+		//free(entry);
 
 		int status = tree_put(server_side_tree, req->key, data);
+
+		printf("%d\n",status);
 	}
 
 	if(ops_info->max_proc < req->op_n)

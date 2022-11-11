@@ -200,6 +200,8 @@ int main(int argc, char **argv) {
 						else if (status == 1) {
 							printf("Writting operation was performed\n");
 						}
+
+						invalid_op = 0;
 					}
 					else{
 						printf("Invalid input format required to execute operation 'verify'\n");
