@@ -19,24 +19,47 @@ struct request_t *queue_head = NULL;
 struct op_proc *ops_info;
 int n_threads;
 int last_assigned;
-pthread_mutex_t queue_lock;
-pthread_cond_t queue_not_empty;
+int counter = 1;
+pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t queue_not_empty = PTHREAD_COND_INITIALIZER;
+pthread_cond_t process_cond = PTHREAD_COND_INITIALIZER;
 
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
  * função invoke(). 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
+
+void comeca(int thread_number) {
+	pthread_mutex_lock(&process_lock);
+	while(counter == 0) {
+		pthread_cond_wait(&process_cond,&process_lock);
+	}
+	printf("Thread %d entered\n", thread_number);
+	counter--;
+	pthread_mutex_unlock(&process_lock);
+}
+
+void termina() {
+	pthread_mutex_lock(&process_lock);
+	counter++;
+		pthread_cond_broadcast(&process_cond);
+	pthread_mutex_unlock(&process_lock);
+}
+
 void queue_init(){
 
 	int mutex_init = pthread_mutex_init(&queue_lock,NULL);
+	int mutex_init2 = pthread_mutex_init(&process_lock,NULL);
 
 	if(mutex_init != 0) {
-		perror("Mutex could not be initiaized\n");
+		perror("Mutex could not be initialized\n");
 		exit(EXIT_FAILURE);
 	}
 
 	int cond_init = pthread_cond_init(&queue_not_empty,NULL);
+	int cond_init2 = pthread_cond_init(&process_cond,NULL);
 
 	if(cond_init != 0) {
 		perror("Cond could not be initiaized\n");
@@ -88,11 +111,16 @@ void queue_add_request(struct request_t *new_req) {
 
 	pthread_mutex_lock(&queue_lock);
 	if(queue_head==NULL) { /* Adiciona na cabeça da fila */
-		queue_head = new_req; new_req->succ=NULL;
-	} else { /* Adiciona no fim da fila */
+		queue_head = new_req; 
+		new_req->succ = NULL;
+	} 
+	else { /* Adiciona no fim da fila */
 		struct request_t *tpreq = queue_head;
-	while(tpreq->succ != NULL) tpreq = tpreq->succ;
-		tpreq->succ=new_req; new_req->succ=NULL;
+		while(tpreq->succ != NULL) {
+			tpreq = tpreq->succ;
+		}
+		tpreq->succ = new_req;
+		new_req->succ = NULL;
 	}
 	pthread_cond_signal(&queue_not_empty); /* Avisa um bloqueado nessa condição */
 	pthread_mutex_unlock(&queue_lock);
@@ -102,7 +130,8 @@ struct request_t *queue_get_request() {
 	pthread_mutex_lock(&queue_lock);
 	while(queue_head==NULL)
 		pthread_cond_wait(&queue_not_empty, &queue_lock); /* Espera haver algo */
-	struct request_t *req = queue_head; queue_head = req->succ;
+	struct request_t *req = queue_head; 
+	queue_head = req->succ;
 	pthread_mutex_unlock(&queue_lock);
 	return req;
 }
@@ -142,12 +171,7 @@ int invoke(struct message_t *msg) {
 		new_req->data = data;
 		new_req->succ = NULL;
 
-		printf("Before add : Req {%d , %d , %s, %s}\n", new_req->op_n, new_req->op, new_req->key, (char*)(new_req->data->data));
-
-		queue_add_request(new_req);
-
-		printf("After add : Req {%d , %d , %s, %s}\n", new_req->op_n, new_req->op, new_req->key, (char*)(new_req->data->data));
-		
+		queue_add_request(new_req);		
 
 		for(int i = 0; i < n_threads; i++) {
 			if(ops_info->in_progress[i] == 0) {
@@ -196,7 +220,7 @@ int invoke(struct message_t *msg) {
 		struct request_t *new_req = malloc(sizeof(struct request_t));
 		new_req->op_n = last_assigned;
 		new_req->op = 0;
-		new_req->key = message->data.data;
+		new_req->key = (char*)(message->data.data);
 		new_req->data = NULL;
 		new_req->succ = NULL;
 
@@ -208,8 +232,6 @@ int invoke(struct message_t *msg) {
 				break;
 			}
 		}
-
-
 
 		message->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
 		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
@@ -322,30 +344,23 @@ int verify(int op_n) {
 void *process_request(void *params) {
 
 	if(params == NULL) {
-		//exit(EXIT_FAILURE);
 		return NULL;
 	}
 
 	int *myid = (int *)params;
 
+	comeca(*myid);
+
     struct request_t *req = queue_get_request();
 
-	printf("Inside thread : Req {%d , %d , %s, %s}\n", req->op_n, req->op, req->key, (char*)(req->data->data));
+	//printf("Before lock : Req {%d , %d , %s, %s}\n", req->op_n, req->op, req->key, (char*)(req->data->data));
 
 	if(req->op == 0) {
-		printf("Thread %d started del\n",*myid);
 		int status = tree_del(server_side_tree, req->key);
 	}
 	else {
-		printf("Thread %d started put\n",*myid);
 
-		struct data_t *data = data_create2(req->data->datasize, req->data->data);
-
-		//struct entry_t *entry = entry_create(req->key, data);
-
-		//free(entry);
-
-		int status = tree_put(server_side_tree, req->key, data);
+		int status = tree_put(server_side_tree, req->key, req->data);
 
 		printf("%d\n",status);
 	}
@@ -360,5 +375,8 @@ void *process_request(void *params) {
 		}
 	}
 
+	termina();
+	
 	return NULL;
 }
+

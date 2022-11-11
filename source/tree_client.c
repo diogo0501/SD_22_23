@@ -225,8 +225,8 @@ int main(int argc, char **argv) {
 
 		}
 		free(op_args);
-		network_close(rtree);
-		network_connect(rtree);
+		//network_close(rtree);
+		//network_connect(rtree);
 
 
 	}

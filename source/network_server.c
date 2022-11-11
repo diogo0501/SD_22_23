@@ -63,7 +63,6 @@ int network_server_init(short port){
 int network_main_loop(int listening_socket){
 
 	int connsockfd, nfds, kfds;
-	//Implementar pseudo codigo do enunciado neste loop incluindo a func poll()
 	struct pollfd desc_set[MAX_SOCKETS];
 
 	for (int i = 0; i < MAX_SOCKETS; i++) {
@@ -81,9 +80,6 @@ int network_main_loop(int listening_socket){
 	struct sockaddr_in client_addr;
 	socklen_t client_len = sizeof((struct addrsock *)&client_addr);
 	struct message_t *recv_msg_str;
-
-	//criar struct pollfd para o descset
-	//sockets chegam ao limite de clientes
 
 	while ((kfds = poll(desc_set, nfds, TIME_OUT)) >= 0) {
 		
@@ -138,9 +134,9 @@ int network_main_loop(int listening_socket){
 					}
 					
 					free(recv_msg_str);
-					close(desc_set[i].fd);
-					desc_set[i].fd = -1;
-					nfds--;
+					// close(desc_set[i].fd);
+					// desc_set[i].fd = -1;
+					// nfds--; //!!!
 					continue;
 				}
 				if(desc_set[i].events == POLL_HUP || 
