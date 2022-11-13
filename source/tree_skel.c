@@ -8,6 +8,7 @@ Miguel Santos, fc54461
 #include "entry.h"
 #include "sdmessage.pb-c.h"
 #include "message-private.h"
+#include "server_structs-private.h"
 #include "tree_skel.h"
 #include <stdio.h>
 #include <stdlib.h>

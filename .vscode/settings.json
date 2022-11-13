@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "message-private.h": "c",
+        "server_structs-private.h": "c"
+    }
+}
