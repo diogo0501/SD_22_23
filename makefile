@@ -23,7 +23,7 @@ client_stub.o = $(HEADERDIR)/client_stub.h $(HEADERDIR)/client_stub-private.h $(
 network_client.o = $(HEADERDIR)/network_client.h $(HEADERDIR)/client_stub-private.h $(HEADERDIR)/message-private.h
 tree_client.o = $(HEADERDIR)/data.h $(HEADERDIR)/entry.h $(HEADERDIR)/client_stub.h
 
-all_objects: tree_client tree_server
+all_objects: tree-client tree-server
 
 %.o: $(SOURCEDIR)/%.c $($@)
 	$(CC) -g -c $< -I $(HEADERDIR) -o $(OBJECTDIR)/$@
@@ -38,11 +38,11 @@ sdmessage.pb-c.c: sdmessage.proto
 client-lib.o: client_stub.o network_client.o sdmessage.pb-c.o
 	ld -r $(OBJECTDIR)/client_stub.o $(OBJECTDIR)/network_client.o $(OBJECTDIR)/sdmessage.pb-c.o -o $(LIBDIR)/$@
 
-tree_server: $(BASE_OBJECTS) tree_skel.o network_server.o tree_server.o
-	$(CC) -g $(addprefix $(OBJECTDIR)/,$(BASE_OBJECTS)) $(OBJECTDIR)/tree_server.o $(OBJECTDIR)/tree.o $(OBJECTDIR)/sdmessage.pb-c.o /usr/local/lib/libprotobuf-c.a $(OBJECTDIR)/network_server.o $(OBJECTDIR)/network_client.o $(OBJECTDIR)/tree_skel.o -o $(BINARYDIR)/tree_server
+tree-server: $(BASE_OBJECTS) tree_skel.o network_server.o tree_server.o
+	$(CC) -g $(addprefix $(OBJECTDIR)/,$(BASE_OBJECTS)) $(OBJECTDIR)/tree_server.o $(OBJECTDIR)/tree.o $(OBJECTDIR)/sdmessage.pb-c.o /usr/local/lib/libprotobuf-c.a $(OBJECTDIR)/network_server.o $(OBJECTDIR)/network_client.o $(OBJECTDIR)/tree_skel.o -o $(BINARYDIR)/tree-server
 
-tree_client: $(BASE_OBJECTS) client-lib.o tree_client.o
-	$(CC) -g $(addprefix $(OBJECTDIR)/,$(BASE_OBJECTS)) $(OBJECTDIR)/tree_client.o $(OBJECTDIR)/tree.o $(LIBDIR)/client-lib.o /usr/local/lib/libprotobuf-c.a -o $(BINARYDIR)/tree_client
+tree-client: $(BASE_OBJECTS) client-lib.o tree_client.o
+	$(CC) -g $(addprefix $(OBJECTDIR)/,$(BASE_OBJECTS)) $(OBJECTDIR)/tree_client.o $(OBJECTDIR)/tree.o $(LIBDIR)/client-lib.o /usr/local/lib/libprotobuf-c.a -o $(BINARYDIR)/tree-client
 
 clean:
-	rm -f $(OBJECTFILES) $(OBJECTDIR)/sdmessage.pb-c.o $(LIBDIR)/client-lib.o $(BINARYDIR)/tree_server $(BINARYDIR)/tree_client
+	rm -f $(OBJECTFILES) $(OBJECTDIR)/sdmessage.pb-c.o $(LIBDIR)/client-lib.o $(BINARYDIR)/tree-server $(BINARYDIR)/tree-client

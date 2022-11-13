@@ -5,12 +5,26 @@
 #include "tree.h"
 #include "message-private.h"
 
+struct request_t {
+    int op_n; //numero da op
+    int op; // 0 se for um del, 1 se for put
+    char* key;
+    struct data_t *data; //NULL || data
+    struct request_t *succ;
+};
+
+struct op_proc {
+    int max_proc;
+    int *in_progress;
+};
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
  * função invoke(). 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
-int tree_skel_init();
+
+//agr tem um param int N 
+int tree_skel_init(int N);
 
 /* Liberta toda a memória e recursos alocados pela função tree_skel_init.
  */
@@ -21,5 +35,13 @@ void tree_skel_destroy();
  * Retorna 0 (OK) ou -1 (erro, por exemplo, árvore nao incializada)
 */
 int invoke(struct message_t *msg);
+
+/* Verifica se a operação identificada por op_n foi executada.
+*/
+int verify(int op_n);
+
+/* Função da thread secundária que vai processar pedidos de escrita.
+*/
+void * process_request(void *params);
 
 #endif

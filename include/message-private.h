@@ -9,12 +9,12 @@ struct message_t {
 };
 
 /* 
- * TODO
+ * Returns the number of bytes sent through given socket
  */
 int send_all(int sock, uint8_t *buf, int len);
 
 /* 
- * TODO
+ * Returns the number of bytes received through given socket
  */
 int recv_all(int sock, uint8_t *buf, unsigned len);
 

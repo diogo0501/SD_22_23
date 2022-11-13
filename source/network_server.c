@@ -13,6 +13,11 @@ Miguel Santos, fc54461
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <poll.h>
+#include <pthread.h>
+
+#define MAX_SOCKETS 4 //Mock max client. Im not sure if there is a limit or what that limit is
+#define TIME_OUT 10
 
 int server_sock;
 
@@ -51,56 +56,102 @@ int network_server_init(short port){
 	printf("Socket listening...\n");
 
 	server_sock = sockfd;
-	
-	tree_skel_init();
-	
+		
 	return sockfd;
 }
 
 int network_main_loop(int listening_socket){
 
+	int connsockfd, nfds, kfds;
+	struct pollfd desc_set[MAX_SOCKETS];
+
+	for (int i = 0; i < MAX_SOCKETS; i++) {
+		desc_set[i].fd = -1;
+	}
+
+	desc_set[0].fd = listening_socket;
+    desc_set[0].events = POLLIN;
+
+	nfds = 1;
+
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGINT, (sig_t)network_server_close);
-	signal(SIGSEGV, (sig_t)network_server_close);
-	signal(SIGTSTP, (sig_t)network_server_close);		
-	signal(SIGABRT, (sig_t)network_server_close);	
-
-	int connsockfd;
+	
 	struct sockaddr_in client_addr;
 	socklen_t client_len = sizeof((struct addrsock *)&client_addr);
 	struct message_t *recv_msg_str;
 
-	while ((connsockfd = accept(listening_socket,(struct sockaddr *) &client_addr, &client_len)) != -1) {
+	while ((kfds = poll(desc_set, nfds, TIME_OUT)) >= 0) {
 		
-		recv_msg_str = malloc(sizeof(struct message_t));
-		
-		recv_msg_str = network_receive(connsockfd);
+		if(kfds > 0) {
+			if((desc_set[0].revents & POLLIN) && (nfds < MAX_SOCKETS)) {
+				for(int i = 1; i < MAX_SOCKETS; i++) {
+					if(desc_set[i].fd == -1) {
+						if((desc_set[i].fd = accept(desc_set[0].fd,(struct sockaddr *) &client_addr, &client_len)) > 0) {
+							desc_set[i].events = POLLIN;
+							nfds++;
+							break;
+						}
+					}
+				}
+				
+			}
 
-		if(recv_msg_str == NULL) {
-			continue;
+			//por existir este for os clientes que se conectam por ultimo tem de esperar pela resposta do servidor aos
+			//clientes anteriores para conseguir receber a sua resposta. Isto acontece mesmo quando a resposta deve ser
+			//imediata como é o caso de operações de leitura.
+			for(int i = 1; i < nfds; i++) {
+				
+				if(desc_set[i].fd == -1) {
+					continue;
+				}
+
+				if(desc_set[i].revents & POLLIN) {
+					recv_msg_str = network_receive(desc_set[i].fd);
+
+					if(recv_msg_str == NULL) {
+						free(recv_msg_str);
+						close(desc_set[i].fd);
+						desc_set[i].fd = -1;
+						continue;	
+					}
+
+					int op = invoke(recv_msg_str);
+
+					int response;
+
+					if(op == -1) {
+
+						recv_msg_str->recv_msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
+						recv_msg_str->recv_msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
+						recv_msg_str->recv_msg->datalength = 0;
+
+						response = network_send(desc_set[i].fd,recv_msg_str);
+
+					} else {
+
+						response = network_send(desc_set[i].fd,recv_msg_str);
+					}
+					
+					free(recv_msg_str);
+					// close(desc_set[i].fd);
+					// desc_set[i].fd = -1;
+					// nfds--; //!!!
+					continue;
+				}
+				if(desc_set[i].events == POLL_HUP || 
+					desc_set[i].events == POLL_ERR ) {
+						close(desc_set[i].fd);
+						desc_set[i].fd = -1;
+						continue;
+
+				}
+			}
 		}
-
-		int op = invoke(recv_msg_str);
-
-		int response;
-
-		if(op == -1) {
-
-			recv_msg_str->recv_msg->opcode = MESSAGE_T__OPCODE__OP_ERROR;
-			recv_msg_str->recv_msg->c_type = MESSAGE_T__C_TYPE__CT_NONE;
-			recv_msg_str->recv_msg->datalength = 0;
-
-			response = network_send(connsockfd,recv_msg_str);
-
-		} else {
-
-			response = network_send(connsockfd,recv_msg_str);
-		}
-		
-		free(recv_msg_str);	
-
-		close(connsockfd);
+			
 	}
+
+	return 0;
 
 	return 0;
 }
@@ -113,7 +164,7 @@ struct message_t *network_receive(int client_socket) {
 
 	recv_bytes = recv_all(client_socket, (uint8_t *)&len, sizeof(unsigned));
 
-    if (recv_bytes == -1) {
+    if (recv_bytes == -1) {struct message_t *recv_msg_str;
         perror("Error on receiving data from the client\n");
         close(client_socket);
         return NULL;
@@ -131,12 +182,12 @@ struct message_t *network_receive(int client_socket) {
         return NULL;
     }
 
-    MessageT *recv_msg = message_t__unpack(NULL, recv_bytes, res);
+    MessageT *response = message_t__unpack(NULL, recv_bytes, res);
 
-	msg_wrapper->recv_msg = recv_msg;
+	msg_wrapper->recv_msg = response;
 
-    if (recv_msg == NULL) {
-        message_t__free_unpacked(recv_msg, NULL);
+    if (response == NULL) {
+        message_t__free_unpacked(response, NULL);
         perror("Error unpacking message\n");
         free(res);
 		return NULL;
@@ -149,59 +200,56 @@ struct message_t *network_receive(int client_socket) {
 
 int network_send(int client_socket, struct message_t *msg) {
 
-	unsigned len,lenNet;
-	uint8_t *buf,*buf1;
+	unsigned data_len,len;
+	uint8_t *data_buf,*len_buf;
 	int send_bytes;
 
-	MessageT *recv_msg = msg->recv_msg;
+	MessageT *message = msg->recv_msg;
 
-    len = message_t__get_packed_size(recv_msg);
-    buf = malloc((int)len);
+    data_len = message_t__get_packed_size(message);
+    data_buf = malloc(data_len);
 
-    if (buf == NULL) {
+    if (data_buf == NULL) {
         perror("Error when mallocing buffer\n");
-        free(buf);
+        free(data_buf);
         close(client_socket);
         return -1;
-    }
+    }struct message_t *recv_msg_str;
 
-    message_t__pack(recv_msg, buf);
+    message_t__pack(message, data_buf);
 
-    buf1 = malloc(len);
-    lenNet = htonl(len);
-    memcpy(buf1, &lenNet, sizeof(unsigned));
+    len_buf = malloc(data_len);
+    len = htonl(data_len);
+    memcpy(len_buf, &len, sizeof(unsigned));
 
-	send_bytes = send_all(client_socket, buf1, sizeof(unsigned));
+	send_bytes = send_all(client_socket, len_buf, sizeof(unsigned));
     if (send_bytes == -1) {
         perror("Error on sending data to client\n");
-        message_t__free_unpacked(recv_msg, NULL);
-        free(buf);
-        free(buf1);
+        message_t__free_unpacked(message, NULL);
+        free(data_buf);
+        free(len_buf);
         return -1;
     }
 
-	//Será que é preciso os dois buffers??
-	send_bytes = send_all(client_socket, buf, len);
-	if (send_bytes == -1) {
+	send_bytes = send_all(client_socket, data_buf, data_len);
+	if (send_bytes == -1) {struct message_t *recv_msg_str;
 		perror("Error on sending data to client\n");
-		message_t__free_unpacked(recv_msg, NULL);
-		free(buf);
-		free(buf1);
+		message_t__free_unpacked(message, NULL);
+		free(data_buf);
+		free(len_buf);
 		return -1;
 	}
 
-    message_t__free_unpacked(recv_msg, NULL);
+    message_t__free_unpacked(message, NULL);
 
-    free(buf);
-    free(buf1);
+    free(data_buf);
+    free(len_buf);
 
     return 0;
 }
 
 int network_server_close() {
-	
-	tree_skel_destroy();
-	
+		
 	close(server_sock);
 	
 	printf("Abnormal termination of the process! The socket is now closed\n");

@@ -20,16 +20,12 @@ char *port_address = NULL;
 
 void sig_handler(int signum) {
 	rtree_disconnect(rtree);
-	free(port_address);
 	exit(-1);
 }
 
 int main(int argc, char **argv) {
 
-	signal(SIGINT, (sig_t)sig_handler);
-	signal(SIGSEGV, (sig_t)sig_handler);
-	signal(SIGTSTP, (sig_t)sig_handler);		
-	signal(SIGABRT, (sig_t)sig_handler);	
+	signal(SIGINT, sig_handler);	
 	signal(SIGPIPE,SIG_IGN);
 
 	if(argc != 2) {
@@ -38,7 +34,7 @@ int main(int argc, char **argv) {
 
 	port_address = malloc(50);
 	strcpy(port_address, argv[1]);
-	char linha[1000];
+	char *linha = malloc(1000);				//valor arbitrario
 
 	rtree = rtree_connect(port_address);
 
@@ -76,8 +72,13 @@ int main(int argc, char **argv) {
 							struct data_t *data = data_create2(strlen(str) + 1, (void*)str);
 							struct entry_t *entry = entry_create(entry_key, data);
 
-							if(rtree_put(rtree, entry) != 0) {
+							int status = rtree_put(rtree,entry);
+
+							if(status == -1) {
 								printf("Error trying to execute operation 'put'\n");
+							}
+							else {
+								printf("Last assigned: %d\n",status);
 							}
 
 							entry_destroy(entry);
@@ -124,10 +125,12 @@ int main(int argc, char **argv) {
 						char *entry_key = malloc(strlen(tok) + 1);
 						strcpy(entry_key, tok);
 
-						if(rtree_del(rtree, entry_key) == 0) {
-							printf("Data with given key has been removed from the tree\n");
+						int status = rtree_del(rtree,entry_key);
+
+						if(status == -1) {
+							printf("Error trying to execute operation 'del'\n");
 						} else {
-							printf("Error / Couldnt delete data with given key from the tree\n");
+							printf("Last assigned: %d\n",status);
 						}
 						free(entry_key);
 						invalid_op = 0;
@@ -142,7 +145,7 @@ int main(int argc, char **argv) {
 					invalid_op = 0;
 				}  else if(tok != NULL & strcmp(tok, "getkeys") == 0) {
 
-					char **keys = rtree_get_keys(rtree); 
+					char **keys = rtree_get_keys(rtree);
 
 					if (keys[0] == NULL) {
 						printf("There is currently no nodes in the tree\n");
@@ -155,52 +158,78 @@ int main(int argc, char **argv) {
 							i++;
 						}
 					}
-					invalid_op = 0;
+					
 					for(int i = 0; keys[i] != NULL; i++) {
-							free(keys[i]);
+						free(keys[i]);
 					}
+					invalid_op = 0;
 					free(keys);
 				}  else if(tok != NULL & strcmp(tok, "getvalues") == 0) {
 
 					void **values = rtree_get_values(rtree);
 					int i = 0;
 
-					if (values[0] == NULL) {
+					if(values[0] == NULL) {
 						printf("There is currently no nodes in the tree\n");
-					}
-					else {
+					}else {
 						while(values[i] != NULL) {
-							printf("Value : %s\n",(char*)values[i]);
+							printf("Value : %s\n",(char*) values[i]);
 							i++;
 						}
 					}
 					invalid_op = 0;
+
 					for(int i = 0; values[i] != NULL; i++) {
 							free(values[i]);
 					}
 					free(values);
 
 				}
+				else if(tok != NULL & strcmp(tok,"verify") == 0) {
+					tok = strtok(NULL, " ");
+
+					if(tok != NULL) {
+						int status = rtree_verify(rtree,atoi(tok));
+
+						if(status == -1) {
+							printf("There has been an error on verifying the operation\n");
+						}
+						else if(status == 0) {
+							printf("Writting operation was not performed yet\n");
+						}
+						else if (status == 1) {
+							printf("Writting operation was performed\n");
+						}
+
+						invalid_op = 0;
+					}
+					else{
+						printf("Invalid input format required to execute operation 'verify'\n");
+					}
+				}
 				else if(tok != NULL & strcmp(tok, "quit") == 0) {
 
 					free(op_args);
 					network_close(rtree);
-					invalid_op = 0;
+					free(linha);
+					rtree_disconnect(rtree);
 					return 0;
 
 				}
 				else {
 					printf("Invalid operation\n");
+					free(op_args);
 				}
 
 			}
 
 		}
 		free(op_args);
-		network_close(rtree);
-		network_connect(rtree);
+		//network_close(rtree);
+		//network_connect(rtree);
 
 
 	}
+	free(linha);
 	free(port_address);
 }
