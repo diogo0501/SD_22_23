@@ -11,6 +11,7 @@ Miguel Santos, fc54461
 #include "server_structs-private.h"
 #include "tree_skel.h"
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -20,7 +21,7 @@ struct request_t *queue_head = NULL;
 struct op_proc *ops_info;
 int n_threads;
 int last_assigned;
-int counter = 1;
+int counter = 3;
 pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t queue_not_empty = PTHREAD_COND_INITIALIZER;
@@ -45,7 +46,8 @@ void comeca(int thread_number) {
 void termina() {
 	pthread_mutex_lock(&process_lock);
 	counter++;
-		pthread_cond_broadcast(&process_cond);
+	pthread_cond_broadcast(&process_cond);
+	sleep(0.5);
 	pthread_mutex_unlock(&process_lock);
 }
 
@@ -152,6 +154,12 @@ void tree_skel_destroy() {
 */
 int invoke(struct message_t *msg) {
 
+	for(int i = 0; i < n_threads; i++) {
+        if(verify(ops_info->in_progress[i]) == 1) {
+            ops_info->in_progress[i] = 0;
+        }
+    }
+	
 	MessageT *message = msg->recv_msg;
 
 	if(server_side_tree == NULL || msg == NULL) {
@@ -176,11 +184,15 @@ int invoke(struct message_t *msg) {
 
 		for(int i = 0; i < n_threads; i++) {
 			if(ops_info->in_progress[i] == 0) {
-				ops_info->in_progress[i] == last_assigned;
+				ops_info->in_progress[i] = last_assigned;
 				break;
 			}
 		}
 		
+		for(int i = 0; i < n_threads; i++) {
+				printf("%d \n", ops_info->in_progress[i]);
+		}
+
 		message->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
 		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
 		message->datalength = last_assigned;
@@ -229,7 +241,7 @@ int invoke(struct message_t *msg) {
 
 		for(int i = 0; i < n_threads; i++) {
 			if(ops_info->in_progress[i] == 0) {
-				ops_info->in_progress[i] == last_assigned;
+				ops_info->in_progress[i] = last_assigned;
 				break;
 			}
 		}
@@ -339,6 +351,8 @@ int invoke(struct message_t *msg) {
 }
 
 int verify(int op_n) {
+	if(op_n < 0)
+		return 2;
 	return (ops_info->max_proc >= op_n) ? 1 : 0;
 }
 
@@ -350,34 +364,35 @@ void *process_request(void *params) {
 
 	int *myid = (int *)params;
 
-	comeca(*myid);
+	while(1) {
+		comeca(*myid);
 
-    struct request_t *req = queue_get_request();
+		struct request_t *req = queue_get_request();
 
-	//printf("Before lock : Req {%d , %d , %s, %s}\n", req->op_n, req->op, req->key, (char*)(req->data->data));
+		//printf("Before lock : Req {%d , %d , %s, %s}\n", req->op_n, req->op, req->key, (char*)(req->data->data));
 
-	if(req->op == 0) {
-		int status = tree_del(server_side_tree, req->key);
-	}
-	else {
-
-		int status = tree_put(server_side_tree, req->key, req->data);
-
-		printf("%d\n",status);
-	}
-
-	if(ops_info->max_proc < req->op_n)
-			ops_info->max_proc = req->op_n;
-
-	for(int i = 0; i < n_threads; i++) {
-		if(ops_info->in_progress[i] == req->op_n) {
-			ops_info->in_progress[i] = 0;
-			break;
+		if(req->op == 0) {
+			int status = tree_del(server_side_tree, req->key);
 		}
-	}
+		else {
 
-	termina();
-	
+			int status = tree_put(server_side_tree, req->key, req->data);
+
+			//printf("%d\n",status);
+		}
+
+		if(ops_info->max_proc < req->op_n)
+				ops_info->max_proc = req->op_n;
+
+		//  for(int i = 0; i < n_threads; i++) {
+		//  	if(ops_info->in_progress[i] == req->op_n) {
+		//  		ops_info->in_progress[i] = 0;
+		//  		break;
+		//  	}
+		//  }
+
+		termina();
+	}
 	return NULL;
 }
 

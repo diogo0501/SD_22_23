@@ -17,9 +17,11 @@ Miguel Santos, fc54461
 
 struct rtree_t *rtree = NULL;
 char *port_address = NULL;
+char *linha;
 
 void sig_handler(int signum) {
 	rtree_disconnect(rtree);
+	free(linha);
 	exit(-1);
 }
 
@@ -34,7 +36,7 @@ int main(int argc, char **argv) {
 
 	port_address = malloc(50);
 	strcpy(port_address, argv[1]);
-	char *linha = malloc(1000);				//valor arbitrario
+	linha = malloc(1000);				//valor arbitrario
 
 	rtree = rtree_connect(port_address);
 
@@ -199,6 +201,8 @@ int main(int argc, char **argv) {
 						}
 						else if (status == 1) {
 							printf("Writting operation was performed\n");
+						} else {
+							printf("Invalid number of operation, must be greater than 0\n");
 						}
 
 						invalid_op = 0;
@@ -225,10 +229,6 @@ int main(int argc, char **argv) {
 
 		}
 		free(op_args);
-		//network_close(rtree);
-		//network_connect(rtree);
-
-
 	}
 	free(linha);
 	free(port_address);
