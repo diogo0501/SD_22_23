@@ -3,7 +3,7 @@ Grupo 47
 Diogo Fernandes, fc54458
 Gonçalo Lopes, fc56334
 Miguel Santos, fc54461
- */
+*/
 
 #include "entry.h"
 #include "sdmessage.pb-c.h"
@@ -21,19 +21,15 @@ struct request_t *queue_head = NULL;
 struct op_proc *ops_info;
 int n_threads;
 int last_assigned;
-int counter = 3;
+int counter = 1;											//nr de threads que acede a zona critica
 pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t queue_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t process_cond = PTHREAD_COND_INITIALIZER;
 
-/* Inicia o skeleton da árvore.
- * O main() do servidor deve chamar esta função antes de poder usar a
- * função invoke(). 
- * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
+/* Inicio da guarda para garantir acesso exclusivo a zona critica
  */
-
-void comeca(int thread_number) {
+void guard_start(int thread_number) {
 	pthread_mutex_lock(&process_lock);
 	while(counter == 0) {
 		pthread_cond_wait(&process_cond,&process_lock);
@@ -43,7 +39,9 @@ void comeca(int thread_number) {
 	pthread_mutex_unlock(&process_lock);
 }
 
-void termina() {
+/* Fim da guarda para garantir acesso exclusivo a zona critica
+ */
+void guard_end() {
 	pthread_mutex_lock(&process_lock);
 	counter++;
 	pthread_cond_broadcast(&process_cond);
@@ -51,6 +49,8 @@ void termina() {
 	pthread_mutex_unlock(&process_lock);
 }
 
+/* Inicia a fila de pedidos do servidor
+ */
 void queue_init(){
 
 	int mutex_init = pthread_mutex_init(&queue_lock,NULL);
@@ -68,9 +68,45 @@ void queue_init(){
 		perror("Cond could not be initiaized\n");
 		exit(EXIT_FAILURE);
 	}
-
 }
 
+/* Adiciona um novo pedido a lista de pedidos do servidor
+ */
+void queue_add_request(struct request_t *new_req) {
+
+	pthread_mutex_lock(&queue_lock);
+	if(queue_head == NULL) { /* Adiciona na cabeça da fila */
+		queue_head = new_req; 
+		new_req->succ = NULL;
+	} else { /* Adiciona no fim da fila */
+		struct request_t *tpreq = queue_head;
+		while(tpreq->succ != NULL) {
+			tpreq = tpreq->succ;
+		}
+		tpreq->succ = new_req;
+		new_req->succ = NULL;
+	}
+	pthread_cond_signal(&queue_not_empty); /* Avisa um bloqueado nessa condição */
+	pthread_mutex_unlock(&queue_lock);
+}
+
+/* Devolve um pedido da lista
+ */
+struct request_t *queue_get_request() {
+	pthread_mutex_lock(&queue_lock);
+	while(queue_head == NULL)
+		pthread_cond_wait(&queue_not_empty, &queue_lock); /* Espera haver algo */
+	struct request_t *req = queue_head; 
+	queue_head = req->succ;
+	pthread_mutex_unlock(&queue_lock);
+	return req;
+}
+
+/* Inicia o skeleton da árvore.
+ * O main() do servidor deve chamar esta função antes de poder usar a
+ * função invoke(). 
+ * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
+ */
 int tree_skel_init(int N) {
 
 	n_threads = N;
@@ -108,37 +144,6 @@ int tree_skel_init(int N) {
 	return server_side_tree == NULL ? -1 : 0;
 }
 
-
-
-void queue_add_request(struct request_t *new_req) {
-
-	pthread_mutex_lock(&queue_lock);
-	if(queue_head==NULL) { /* Adiciona na cabeça da fila */
-		queue_head = new_req; 
-		new_req->succ = NULL;
-	} 
-	else { /* Adiciona no fim da fila */
-		struct request_t *tpreq = queue_head;
-		while(tpreq->succ != NULL) {
-			tpreq = tpreq->succ;
-		}
-		tpreq->succ = new_req;
-		new_req->succ = NULL;
-	}
-	pthread_cond_signal(&queue_not_empty); /* Avisa um bloqueado nessa condição */
-	pthread_mutex_unlock(&queue_lock);
-	}
-
-struct request_t *queue_get_request() {
-	pthread_mutex_lock(&queue_lock);
-	while(queue_head==NULL)
-		pthread_cond_wait(&queue_not_empty, &queue_lock); /* Espera haver algo */
-	struct request_t *req = queue_head; 
-	queue_head = req->succ;
-	pthread_mutex_unlock(&queue_lock);
-	return req;
-}
-
 /* Liberta toda a memória e recursos alocados pela função tree_skel_init.
  */
 void tree_skel_destroy() {
@@ -159,7 +164,7 @@ int invoke(struct message_t *msg) {
             ops_info->in_progress[i] = 0;
         }
     }
-	
+
 	MessageT *message = msg->recv_msg;
 
 	if(server_side_tree == NULL || msg == NULL) {
@@ -178,7 +183,6 @@ int invoke(struct message_t *msg) {
 		new_req->op = 1;
 		new_req->key = (char*)(message->entry->key);
 		new_req->data = data;
-		new_req->succ = NULL;
 
 		queue_add_request(new_req);		
 
@@ -235,7 +239,6 @@ int invoke(struct message_t *msg) {
 		new_req->op = 0;
 		new_req->key = (char*)(message->data.data);
 		new_req->data = NULL;
-		new_req->succ = NULL;
 
 		queue_add_request(new_req);
 
@@ -350,12 +353,16 @@ int invoke(struct message_t *msg) {
 	return 0;
 }
 
+/* Verifica se a operação identificada por op_n foi executada.
+*/
 int verify(int op_n) {
 	if(op_n < 0)
 		return 2;
 	return (ops_info->max_proc >= op_n) ? 1 : 0;
 }
 
+/* Função da thread secundária que vai processar pedidos de escrita.
+*/
 void *process_request(void *params) {
 
 	if(params == NULL) {
@@ -365,7 +372,7 @@ void *process_request(void *params) {
 	int *myid = (int *)params;
 
 	while(1) {
-		comeca(*myid);
+		guard_start(*myid);
 
 		struct request_t *req = queue_get_request();
 
@@ -373,25 +380,15 @@ void *process_request(void *params) {
 
 		if(req->op == 0) {
 			int status = tree_del(server_side_tree, req->key);
-		}
-		else {
-
+		} else {
 			int status = tree_put(server_side_tree, req->key, req->data);
-
-			//printf("%d\n",status);
 		}
 
 		if(ops_info->max_proc < req->op_n)
 				ops_info->max_proc = req->op_n;
 
-		//  for(int i = 0; i < n_threads; i++) {
-		//  	if(ops_info->in_progress[i] == req->op_n) {
-		//  		ops_info->in_progress[i] = 0;
-		//  		break;
-		//  	}
-		//  }
-
-		termina();
+		//falta dar free na request
+		guard_end();
 	}
 	return NULL;
 }
