@@ -23,6 +23,8 @@ int n_threads;
 int last_assigned;
 int counter = 1;											//nr de threads que acede a zona critica
 pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t ops_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t req_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t queue_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t process_cond = PTHREAD_COND_INITIALIZER;
@@ -34,7 +36,7 @@ void guard_start(int thread_number) {
 	while(counter == 0) {
 		pthread_cond_wait(&process_cond,&process_lock);
 	}
-	printf("Thread %d entered\n", thread_number);
+	//printf("Thread %d entered\n", thread_number);
 	counter--;
 	pthread_mutex_unlock(&process_lock);
 }
@@ -55,6 +57,8 @@ void queue_init(){
 
 	int mutex_init = pthread_mutex_init(&queue_lock,NULL);
 	int mutex_init2 = pthread_mutex_init(&process_lock,NULL);
+	int mutex_inti3 = pthread_mutex_init(&ops_lock,NULL);
+	int mutex_init4 = pthread_mutex_init(&req_lock,NULL);
 
 	if(mutex_init != 0) {
 		perror("Mutex could not be initialized\n");
@@ -113,12 +117,16 @@ int tree_skel_init(int N) {
 
 	ops_info = malloc(sizeof(struct op_proc));
 
+	pthread_mutex_lock(&ops_lock);
+
 	ops_info->max_proc = 0;
 	ops_info->in_progress = malloc(sizeof(int) * n_threads);
 
 	for(int i = 0; i < n_threads; i++) {
 		ops_info->in_progress[i] = 0;
 	}
+
+	pthread_mutex_unlock(&ops_lock);
 
 	last_assigned = 1;
 
@@ -159,11 +167,15 @@ void tree_skel_destroy() {
 */
 int invoke(struct message_t *msg) {
 
+	pthread_mutex_lock(&ops_lock);
+
 	for(int i = 0; i < n_threads; i++) {
         if(verify(ops_info->in_progress[i]) == 1) {
             ops_info->in_progress[i] = 0;
         }
     }
+
+	pthread_mutex_unlock(&ops_lock);
 
 	MessageT *message = msg->recv_msg;
 
@@ -177,14 +189,29 @@ int invoke(struct message_t *msg) {
 			return -1;
 		}
 
-		struct data_t *data = data_create2(message->entry->data.len, (void*)message->entry->data.data);
+		pthread_mutex_lock(&req_lock);
+
+		void* value_dup = malloc(sizeof(message->entry->data.data));
+		memcpy(value_dup, (void*)message->entry->data.data, sizeof(value_dup));
+
+		char* key_dup = malloc(sizeof(message->entry->key));
+		memcpy(key_dup, (char*)message->entry->key, sizeof(key_dup));
+
+		int length;
+		memcpy(&length, &message->entry->data.len,sizeof(int));
+
+		struct data_t *data = data_create2(length, value_dup);
 		struct request_t *new_req = malloc(sizeof(struct request_t));
 		new_req->op_n = last_assigned;
 		new_req->op = 1;
-		new_req->key = (char*)(message->entry->key);
+		new_req->key = key_dup;
 		new_req->data = data;
 
-		queue_add_request(new_req);		
+		pthread_mutex_unlock(&req_lock);
+
+		queue_add_request(new_req);	
+
+		pthread_mutex_lock(&ops_lock);	
 
 		for(int i = 0; i < n_threads; i++) {
 			if(ops_info->in_progress[i] == 0) {
@@ -192,6 +219,8 @@ int invoke(struct message_t *msg) {
 				break;
 			}
 		}
+
+		pthread_mutex_unlock(&ops_lock);
 		
 		for(int i = 0; i < n_threads; i++) {
 				printf("%d \n", ops_info->in_progress[i]);
@@ -242,12 +271,16 @@ int invoke(struct message_t *msg) {
 
 		queue_add_request(new_req);
 
+		pthread_mutex_lock(&ops_lock);
+
 		for(int i = 0; i < n_threads; i++) {
 			if(ops_info->in_progress[i] == 0) {
 				ops_info->in_progress[i] = last_assigned;
 				break;
 			}
 		}
+
+		pthread_mutex_unlock(&ops_lock);
 
 		message->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
 		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
@@ -372,9 +405,10 @@ void *process_request(void *params) {
 	int *myid = (int *)params;
 
 	while(1) {
-		guard_start(*myid);
 
 		struct request_t *req = queue_get_request();
+
+		guard_start(*myid);
 
 		//printf("Before lock : Req {%d , %d , %s, %s}\n", req->op_n, req->op, req->key, (char*)(req->data->data));
 
@@ -384,9 +418,10 @@ void *process_request(void *params) {
 			int status = tree_put(server_side_tree, req->key, req->data);
 		}
 
+		pthread_mutex_lock(&ops_lock);
 		if(ops_info->max_proc < req->op_n)
 				ops_info->max_proc = req->op_n;
-
+		pthread_mutex_unlock(&ops_lock);
 		//falta dar free na request
 		guard_end();
 	}
