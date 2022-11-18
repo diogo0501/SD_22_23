@@ -53,6 +53,8 @@ void guard_end() {
 	pthread_mutex_unlock(&process_lock);
 }
 
+/* Cria um request e processa o dependendo do opcode
+ */
 struct request_t *create_request(int op, MessageT *message) {
 
 	struct request_t *new_req = malloc(sizeof(struct request_t));
@@ -72,7 +74,7 @@ struct request_t *create_request(int op, MessageT *message) {
 	return new_req;
 }
 
-/* Inicia a fila de pedidos do servidor
+/* Inicia os locks e as condicoes de lock
  */
 void locks_init(){
 

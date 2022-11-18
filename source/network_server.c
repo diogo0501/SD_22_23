@@ -109,9 +109,7 @@ int network_main_loop(int listening_socket){
 				
 			}
 
-			//por existir este for os clientes que se conectam por ultimo tem de esperar pela resposta do servidor aos
-			//clientes anteriores para conseguir receber a sua resposta. Isto acontece mesmo quando a resposta deve ser
-			//imediata como é o caso de operações de leitura.
+			//corre so para o nr de fds dos clientes, nao do servidor
 			for(int i = 1; i < nfds; i++) {
 				
 				if(desc_set[i].fd == -1) {
