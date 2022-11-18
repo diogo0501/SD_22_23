@@ -100,6 +100,7 @@ int network_main_loop(int listening_socket){
 					if(desc_set[i].fd == -1) {
 						if((desc_set[i].fd = accept(desc_set[0].fd,(struct sockaddr *) &client_addr, &client_len)) > 0) {
 							desc_set[i].events = POLLIN;
+							desc_set[i].revents = 0;
 							nfds++;
 							break;
 						}
@@ -145,9 +146,6 @@ int network_main_loop(int listening_socket){
 					}
 					
 					free(recv_msg_str);
-					// close(desc_set[i].fd);
-					// desc_set[i].fd = -1;
-					// nfds--; //!!!
 					continue;
 				}
 				if(desc_set[i].events == POLL_HUP || 
