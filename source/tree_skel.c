@@ -438,7 +438,7 @@ void *process_request(void *params) {
 		if(ops_info->max_proc < req->op_n)
 				ops_info->max_proc = req->op_n;
 		pthread_mutex_unlock(&ops_lock);
-		//falta dar free na request
+		
 		guard_end();
 	}
 	return NULL;

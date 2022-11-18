@@ -425,6 +425,7 @@ void **rtree_get_values(struct rtree_t *rtree) {
 /* Verifica se a operação identificada por op_n foi executada na tree dada.
 */
 int rtree_verify(struct rtree_t *rtree, int op_n){
+    
     if(rtree == NULL) {
         return -1;
     }

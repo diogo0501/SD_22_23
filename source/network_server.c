@@ -98,6 +98,7 @@ int network_main_loop(int listening_socket){
 			if((desc_set[0].revents & POLLIN) && (nfds < MAX_SOCKETS)) {
 				for(int i = 1; i < MAX_SOCKETS; i++) {
 					if(desc_set[i].fd == -1) {
+						//desc_set[0].fd == serversocket
 						if((desc_set[i].fd = accept(desc_set[0].fd,(struct sockaddr *) &client_addr, &client_len)) > 0) {
 							desc_set[i].events = POLLIN;
 							desc_set[i].revents = 0;
