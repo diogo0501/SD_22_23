@@ -11,7 +11,6 @@ Miguel Santos, fc54461
 #include "server_structs-private.h"
 #include "tree_skel.h"
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -24,7 +23,6 @@ int last_assigned;
 int counter = 1;											//nr de threads que acede a zona critica
 pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ops_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t req_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t queue_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t process_cond = PTHREAD_COND_INITIALIZER;
@@ -32,11 +30,13 @@ pthread_cond_t process_cond = PTHREAD_COND_INITIALIZER;
 /* Inicio da guarda para garantir acesso exclusivo a zona critica
  */
 void guard_start(int thread_number) {
+
 	pthread_mutex_lock(&process_lock);
+	
 	while(counter == 0) {
 		pthread_cond_wait(&process_cond,&process_lock);
 	}
-	//printf("Thread %d entered\n", thread_number);
+
 	counter--;
 	pthread_mutex_unlock(&process_lock);
 }
@@ -44,32 +44,57 @@ void guard_start(int thread_number) {
 /* Fim da guarda para garantir acesso exclusivo a zona critica
  */
 void guard_end() {
+
 	pthread_mutex_lock(&process_lock);
+
 	counter++;
+	
 	pthread_cond_broadcast(&process_cond);
-	sleep(0.5);
 	pthread_mutex_unlock(&process_lock);
+}
+
+struct request_t *create_request(int op, MessageT *message) {
+
+	struct request_t *new_req = malloc(sizeof(struct request_t));
+	new_req->op_n = last_assigned;
+	new_req->op = op;
+
+	if(op == 1) {
+		struct data_t *data = data_create2(message->entry->data.len, message->entry->data.data);
+		new_req->key = message->entry->key;
+		new_req->data = data;
+	}
+	else {
+		new_req->key = (char*)(message->data.data);
+		new_req->data = NULL;
+	}
+
+	return new_req;
 }
 
 /* Inicia a fila de pedidos do servidor
  */
-void queue_init(){
+void locks_init(){
 
-	int mutex_init = pthread_mutex_init(&queue_lock,NULL);
-	int mutex_init2 = pthread_mutex_init(&process_lock,NULL);
-	int mutex_inti3 = pthread_mutex_init(&ops_lock,NULL);
-	int mutex_init4 = pthread_mutex_init(&req_lock,NULL);
+	int queue_lock_init = pthread_mutex_init(&queue_lock,NULL);
+	int proc_lock_init = pthread_mutex_init(&process_lock,NULL);
+	int ops_lock_init = pthread_mutex_init(&ops_lock,NULL);
 
-	if(mutex_init != 0) {
-		perror("Mutex could not be initialized\n");
+	int lock_status = queue_lock_init + proc_lock_init	
+						+ ops_lock_init;
+
+	if( lock_status != 0) {
+		perror("Some mutex could not be initialized\n");
 		exit(EXIT_FAILURE);
 	}
 
-	int cond_init = pthread_cond_init(&queue_not_empty,NULL);
-	int cond_init2 = pthread_cond_init(&process_cond,NULL);
+	int queue_cond_init = pthread_cond_init(&queue_not_empty,NULL);
+	int proc_cond_init = pthread_cond_init(&process_cond,NULL);
 
-	if(cond_init != 0) {
-		perror("Cond could not be initiaized\n");
+	int cond_status = queue_cond_init + proc_cond_init;
+
+	if(cond_status != 0) {
+		perror("Some cond could not be initiaized\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -79,10 +104,12 @@ void queue_init(){
 void queue_add_request(struct request_t *new_req) {
 
 	pthread_mutex_lock(&queue_lock);
+
 	if(queue_head == NULL) { /* Adiciona na cabeça da fila */
 		queue_head = new_req; 
 		new_req->succ = NULL;
-	} else { /* Adiciona no fim da fila */
+	} 
+	else { /* Adiciona no fim da fila */
 		struct request_t *tpreq = queue_head;
 		while(tpreq->succ != NULL) {
 			tpreq = tpreq->succ;
@@ -90,6 +117,7 @@ void queue_add_request(struct request_t *new_req) {
 		tpreq->succ = new_req;
 		new_req->succ = NULL;
 	}
+
 	pthread_cond_signal(&queue_not_empty); /* Avisa um bloqueado nessa condição */
 	pthread_mutex_unlock(&queue_lock);
 }
@@ -97,12 +125,17 @@ void queue_add_request(struct request_t *new_req) {
 /* Devolve um pedido da lista
  */
 struct request_t *queue_get_request() {
+
 	pthread_mutex_lock(&queue_lock);
+
 	while(queue_head == NULL)
 		pthread_cond_wait(&queue_not_empty, &queue_lock); /* Espera haver algo */
+	
 	struct request_t *req = queue_head; 
 	queue_head = req->succ;
+
 	pthread_mutex_unlock(&queue_lock);
+
 	return req;
 }
 
@@ -130,7 +163,7 @@ int tree_skel_init(int N) {
 
 	last_assigned = 1;
 
-	queue_init();
+	locks_init();
 
 	pthread_t thread[n_threads];
 	int thread_param[n_threads];
@@ -156,8 +189,13 @@ int tree_skel_init(int N) {
  */
 void tree_skel_destroy() {
 
-	//dar free em todas as structs 
-	
+	free(ops_info->in_progress);
+	free(ops_info);
+	 
+	pthread_mutex_destroy(&process_lock);
+	pthread_mutex_destroy(&ops_lock);
+	pthread_mutex_destroy(&queue_lock);
+		
 	tree_destroy(server_side_tree);
 }
 
@@ -189,25 +227,7 @@ int invoke(struct message_t *msg) {
 			return -1;
 		}
 
-		pthread_mutex_lock(&req_lock);
-
-		void* value_dup = malloc(sizeof(message->entry->data.data));
-		memcpy(value_dup, (void*)message->entry->data.data, sizeof(value_dup));
-
-		char* key_dup = malloc(sizeof(message->entry->key));
-		memcpy(key_dup, (char*)message->entry->key, sizeof(key_dup));
-
-		int length;
-		memcpy(&length, &message->entry->data.len,sizeof(int));
-
-		struct data_t *data = data_create2(length, value_dup);
-		struct request_t *new_req = malloc(sizeof(struct request_t));
-		new_req->op_n = last_assigned;
-		new_req->op = 1;
-		new_req->key = key_dup;
-		new_req->data = data;
-
-		pthread_mutex_unlock(&req_lock);
+		struct request_t* new_req = create_request(1,message);
 
 		queue_add_request(new_req);	
 
@@ -263,11 +283,7 @@ int invoke(struct message_t *msg) {
 
 	if(message->opcode == MESSAGE_T__OPCODE__OP_DEL && message->c_type == MESSAGE_T__C_TYPE__CT_KEY) {
 
-		struct request_t *new_req = malloc(sizeof(struct request_t));
-		new_req->op_n = last_assigned;
-		new_req->op = 0;
-		new_req->key = (char*)(message->data.data);
-		new_req->data = NULL;
+		struct request_t *new_req = create_request(0,message);
 
 		queue_add_request(new_req);
 
@@ -409,8 +425,6 @@ void *process_request(void *params) {
 		struct request_t *req = queue_get_request();
 
 		guard_start(*myid);
-
-		//printf("Before lock : Req {%d , %d , %s, %s}\n", req->op_n, req->op, req->key, (char*)(req->data->data));
 
 		if(req->op == 0) {
 			int status = tree_del(server_side_tree, req->key);
