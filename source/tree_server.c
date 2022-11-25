@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 	int short socket_num;
 	int socket,connsocket;
 	char *endptr;
-	int n_threads;
+	char* zoo_ip;
 	char *endptr2;
 
 	if(argc != 3) {
@@ -33,14 +33,10 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-	n_threads = strtol(argv[2],&endptr2,10);
+	//TODO : fazer check se o ip é valido ou nao
+	zoo_ip = argv[2];
 
-	if(strlen(endptr2) > 0) {
-		perror("Number of threads do not match with any integer\n");
-		exit(-1);
-	}
-
-	tree_skel_init(n_threads);
+	tree_skel_init(zoo_ip);
 	socket = network_server_init((short) socket_num);
 
 	if(socket == -1) {

@@ -11,16 +11,24 @@ Miguel Santos, fc54461
 #include "server_structs-private.h"
 #include "tree_skel.h"
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <errno.h>
+#include <zookeeper/zookeeper.h>
 
+static zhandle_t *zh;
+static char *chain_path = "/chain"; 
+static char *new_chain_path = "/chain"; 
 struct tree_t *server_side_tree;
 struct request_t *queue_head = NULL;
 struct op_proc *ops_info;
-int n_threads;
 int last_assigned;
-int counter = 1;											//nr de threads que acede a zona critica
+int is_connected;
+int counter = 1;
+int znode_id;											//nr de threads que acede a zona critica(DEPRECATED)
 pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ops_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -29,7 +37,7 @@ pthread_cond_t process_cond = PTHREAD_COND_INITIALIZER;
 
 /* Inicio da guarda para garantir acesso exclusivo a zona critica
  */
-void guard_start(int thread_number) {
+void guard_start() {
 
 	pthread_mutex_lock(&process_lock);
 	
@@ -141,25 +149,30 @@ struct request_t *queue_get_request() {
 	return req;
 }
 
+void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+	if (type == ZOO_SESSION_EVENT) {
+		if (state == ZOO_CONNECTED_STATE) {
+			is_connected = 1; 
+		} else {
+			is_connected = 0; 
+		}
+	}
+}
+
 /* Inicia o skeleton da árvore.
  * O main() do servidor deve chamar esta função antes de poder usar a
  * função invoke(). 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
-int tree_skel_init(int N) {
-
-	n_threads = N;
+int tree_skel_init(char* zoo_ip) {
 
 	ops_info = malloc(sizeof(struct op_proc));
 
 	pthread_mutex_lock(&ops_lock);
 
 	ops_info->max_proc = 0;
-	ops_info->in_progress = malloc(sizeof(int) * n_threads);
-
-	for(int i = 0; i < n_threads; i++) {
-		ops_info->in_progress[i] = 0;
-	}
+	ops_info->in_progress = malloc(sizeof(int));
+	ops_info->in_progress[0] = 0;
 
 	pthread_mutex_unlock(&ops_lock);
 
@@ -167,22 +180,65 @@ int tree_skel_init(int N) {
 
 	locks_init();
 
-	pthread_t thread[n_threads];
-	int thread_param[n_threads];
+	pthread_t thread;
+	int thread_param = 1;
 
-	for(int i = 0; i < n_threads; i++) {
-		thread_param[i] = i+1;
-		if(pthread_create(&thread[i],NULL, &process_request,(void*) &thread_param[i]) != 0){
-			printf("Thread %d was not created sucessfully.\n",i);
-			exit(EXIT_FAILURE);
-		}
-		if(pthread_detach(thread[i]) != 0) {
-			printf("Thread %d couldn't be detached properly.\n",i);
-			exit(EXIT_FAILURE);
-		}
+	if(pthread_create(&thread,NULL, &process_request,(void*) &thread_param) != 0){
+		printf("Thread was not created sucessfully.\n");
+		exit(EXIT_FAILURE);
+	}
+	if(pthread_detach(thread) != 0) {
+		printf("Thread couldn't be detached properly.\n");
+		exit(EXIT_FAILURE);
 	}
 
 	server_side_tree = tree_create();
+
+	zh = zookeeper_init(zoo_ip, connection_watcher, 2000, 0, 0, 0);
+
+	if (zh == NULL) {
+		fprintf(stderr,"Error connecting to ZooKeeper server[%d]!\n", errno);
+		exit(EXIT_FAILURE);
+	}
+
+	sleep(3);
+
+	if (is_connected) {
+		if (ZNONODE == zoo_exists(zh, chain_path, 0, NULL)) {
+
+			int new_chain_len = 1024;
+
+			new_chain_path = malloc(new_chain_len);
+
+			if (ZOK != zoo_create(zh, chain_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
+				fprintf(stderr, "Error creating znode from path %s!\n", chain_path);
+			    exit(EXIT_FAILURE);
+			}
+		}
+
+		char node_path[120] = "";
+		strcat(node_path,new_chain_path); 
+		strcat(node_path,"/node"); 
+		int new_path_len = 1024;
+		char* new_path = malloc (new_path_len);
+		
+		//TODO : change value or wtv
+		if (ZOK != zoo_create(zh, node_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL 
+		| ZOO_SEQUENCE, new_path, new_path_len)) {
+			fprintf(stderr, "Error creating znode from path %s!\n", new_path);
+			exit(EXIT_FAILURE);
+		} 
+
+		char* tmp = malloc(sizeof(char*)*10 + 1);
+		strncpy(tmp, new_path + strlen(node_path), 10);
+
+		znode_id = atoi(tmp);
+
+		sleep(5);
+
+		free(tmp);
+		free(new_path);
+	}
 
 	return server_side_tree == NULL ? -1 : 0;
 }
@@ -209,11 +265,9 @@ int invoke(struct message_t *msg) {
 
 	pthread_mutex_lock(&ops_lock);
 
-	for(int i = 0; i < n_threads; i++) {
-        if(verify(ops_info->in_progress[i]) == 1) {
-            ops_info->in_progress[i] = 0;
-        }
-    }
+	if(verify(ops_info->in_progress[0]) == 1) {
+		ops_info->in_progress[0] = 0;
+	}
 
 	pthread_mutex_unlock(&ops_lock);
 
@@ -235,18 +289,12 @@ int invoke(struct message_t *msg) {
 
 		pthread_mutex_lock(&ops_lock);	
 
-		for(int i = 0; i < n_threads; i++) {
-			if(ops_info->in_progress[i] == 0) {
-				ops_info->in_progress[i] = last_assigned;
-				break;
-			}
-		}
+
+		if(ops_info->in_progress[0] == 0) 
+			ops_info->in_progress[0] = last_assigned;
+		
 
 		pthread_mutex_unlock(&ops_lock);
-		
-		for(int i = 0; i < n_threads; i++) {
-				printf("%d \n", ops_info->in_progress[i]);
-		}
 
 		message->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
 		message->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
@@ -291,12 +339,10 @@ int invoke(struct message_t *msg) {
 
 		pthread_mutex_lock(&ops_lock);
 
-		for(int i = 0; i < n_threads; i++) {
-			if(ops_info->in_progress[i] == 0) {
-				ops_info->in_progress[i] = last_assigned;
-				break;
-			}
+		if(ops_info->in_progress[0] == 0) {
+			ops_info->in_progress[0] = last_assigned;
 		}
+
 
 		pthread_mutex_unlock(&ops_lock);
 
@@ -426,7 +472,7 @@ void *process_request(void *params) {
 
 		struct request_t *req = queue_get_request();
 
-		guard_start(*myid);
+		guard_start();
 
 		if(req->op == 0) {
 			int status = tree_del(server_side_tree, req->key);
