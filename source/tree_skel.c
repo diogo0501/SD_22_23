@@ -19,6 +19,11 @@ Miguel Santos, fc54461
 #include <errno.h>
 #include <zookeeper/zookeeper.h>
 
+#define ZDATALEN 1024 * 1024
+
+static char *watcher_ctx = "ZooKeeper Data Watcher";
+typedef struct String_vector zoo_string; 
+zoo_string* children_list; 
 static zhandle_t *zh;
 static char *chain_path = "/chain"; 
 static char *new_chain_path = "/chain"; 
@@ -28,12 +33,60 @@ struct op_proc *ops_info;
 int last_assigned;
 int is_connected;
 int counter = 1;
-int znode_id;											//nr de threads que acede a zona critica(DEPRECATED)
+int znode_id;
+int next_server; //Nao sei se o id é int ou node.. como no data[i]
+
+											//nr de threads que acede a zona critica(DEPRECATED)
 pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ops_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t queue_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t process_cond = PTHREAD_COND_INITIALIZER;
+
+static void set_next_server() {
+	int highest_znode_id = INT8_MIN;
+	int id = 0;
+	char* tmp2 = "node";
+
+
+	//TODOOOO : Seg Fault aqui !!!!!!!!!!!!!!!!
+
+	for (int i = 0; i < children_list->count; i++)  {
+
+			char* tmp = malloc(sizeof(char*));
+			
+			strncpy(tmp, children_list->data[i] + strlen(tmp2), strlen(children_list->data[i]) + 1 - strlen("node"));
+
+			printf("%s\n",tmp);
+			id = atoi(tmp);
+			highest_znode_id = (id > highest_znode_id) ? id : highest_znode_id;
+	}
+
+	printf("\nHighest id found : %d\n\n",highest_znode_id);
+
+
+}
+
+static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx) {
+
+	int zoo_data_len = ZDATALEN;
+
+	if (state == ZOO_CONNECTED_STATE)	 {
+		if (type == ZOO_CHILD_EVENT) {
+		/* Get the updated children and reset the watch */ 
+			if (ZOK != zoo_wget_children(zh, chain_path, child_watcher, watcher_ctx, children_list)) {
+				fprintf(stderr, "Error setting watch at %s!\n", chain_path);
+			}
+			fprintf(stderr, "\n=== znode listing === [ %s ]", chain_path); 
+			for (int i = 0; i < children_list->count; i++)  {
+				fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+			}
+			fprintf(stderr, "\n=== done ===\n");
+		} 
+	}
+}
+
+
 
 /* Inicio da guarda para garantir acesso exclusivo a zona critica
  */
@@ -150,13 +203,8 @@ struct request_t *queue_get_request() {
 }
 
 void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
-	if (type == ZOO_SESSION_EVENT) {
-		if (state == ZOO_CONNECTED_STATE) {
-			is_connected = 1; 
-		} else {
-			is_connected = 0; 
-		}
-	}
+	if (type == ZOO_SESSION_EVENT) 
+		is_connected = (state == ZOO_CONNECTED_STATE) ? 1 : 0;
 }
 
 /* Inicia o skeleton da árvore.
@@ -234,7 +282,20 @@ int tree_skel_init(char* zoo_ip) {
 
 		znode_id = atoi(tmp);
 
-		sleep(5);
+		zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+
+		if (ZOK != zoo_wget_children(zh, chain_path, &child_watcher, watcher_ctx, children_list)) {
+			fprintf(stderr, "Error setting watch at %s!\n", chain_path);
+		}
+		fprintf(stderr, "\n=== znode listing === [ %s ]", chain_path); 
+		for (int i = 0; i < children_list->count; i++)  {
+			fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+		}
+		fprintf(stderr, "\n=== done ===\n");
+
+		sleep(5); //Is this rlly nec?
+
+		set_next_server();
 
 		free(tmp);
 		free(new_path);
