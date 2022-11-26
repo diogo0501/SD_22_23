@@ -11,7 +11,7 @@ Miguel Santos, fc54461
 #include <string.h>
 #include <signal.h>
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) {	
 
 	//Existe mais um novo arg - tree <port> <N> onde N é o numero de threads secundarias a ser lançadas pela main thread
 
@@ -19,10 +19,11 @@ int main(int argc, char **argv) {
 	int socket,connsocket;
 	char *endptr;
 	char* zoo_ip;
+	char* zoo_ip_check;
 	char *endptr2;
 
 	if(argc != 3) {
-		perror("Invalid number of arguments, try: ./tree-server <port> <N>\n");
+		perror("Invalid number of arguments, try: ./tree-server <port> <address>:<port>\n");
 		exit(-1);
 	}
 
@@ -33,8 +34,13 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-	//TODO : fazer check se o ip é valido ou nao
 	zoo_ip = argv[2];
+	memcpy(zoo_ip_check,zoo_ip,sizeof(zoo_ip));
+
+	if(strtok(zoo_ip_check, ":") == NULL) {
+		perror("Zookeeper IP format was not followed. Try <address>:<port> instead\n");
+		exit(-1);
+	}
 
 	tree_skel_init(zoo_ip);
 	socket = network_server_init((short) socket_num);

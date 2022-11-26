@@ -19,7 +19,7 @@ Miguel Santos, fc54461
 #include <errno.h>
 #include <zookeeper/zookeeper.h>
 
-#define ZDATALEN 1024 * 1024
+int ZDATALEN = 1024 * 1024;
 
 static char *watcher_ctx = "ZooKeeper Data Watcher";
 typedef struct String_vector zoo_string; 
@@ -36,7 +36,6 @@ int counter = 1;
 int znode_id;
 int next_server; //Nao sei se o id é int ou node.. como no data[i]
 
-											//nr de threads que acede a zona critica(DEPRECATED)
 pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ops_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t queue_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -47,22 +46,48 @@ static void set_next_server() {
 	int highest_znode_id = INT8_MIN;
 	int id = 0;
 	char* tmp2 = "node";
-
-
-	//TODOOOO : Seg Fault aqui !!!!!!!!!!!!!!!!
+	char* next_serv_path = malloc(sizeof(char*));
+	char* zdata_buf = malloc(ZDATALEN * sizeof(char*));
 
 	for (int i = 0; i < children_list->count; i++)  {
 
-			char* tmp = malloc(sizeof(char*));
-			
-			strncpy(tmp, children_list->data[i] + strlen(tmp2), strlen(children_list->data[i]) + 1 - strlen("node"));
+		char* tmp = malloc(sizeof(char*));
+		
+		strncpy(tmp, children_list->data[i] + strlen(tmp2), strlen(children_list->data[i]) + 1 - strlen("node"));
 
-			printf("%s\n",tmp);
-			id = atoi(tmp);
-			highest_znode_id = (id > highest_znode_id) ? id : highest_znode_id;
+		id = atoi(tmp);
+
+		if (id > highest_znode_id) {
+			highest_znode_id = id;
+			next_serv_path = children_list->data[i];
+		}
+
+	}
+	printf("\nHighest id found : %d\n\n",highest_znode_id);
+
+	if(highest_znode_id <= znode_id) {
+		//.... NULL in next server
 	}
 
-	printf("\nHighest id found : %d\n\n",highest_znode_id);
+	//TODO : Fix path of next server. Seg Fault em strcat. Tem a ver com o size
+
+	char *tmp3 = malloc(sizeof(char*) * 120);
+	strcat(tmp3,"/chain/");
+	strcat(tmp3,next_serv_path);
+
+	printf("Next Server Path : %s\n",tmp3);
+	if (ZNONODE == zoo_exists(zh, tmp3, 0, NULL)) {
+			fprintf(stderr, "%s doesn't exist!\n", next_serv_path);
+			exit(EXIT_FAILURE);
+	}
+
+	if (ZOK != zoo_get(zh, tmp3, 0, zdata_buf, &ZDATALEN, NULL)) {
+		printf("ERROR GETTING BACKUP INFO\n");
+	}
+
+	//Getting ip is not solved yet
+	printf("Next Server IP : %s\n",zdata_buf);
+	//TODO : Get ip from server with highest id
 
 
 }
@@ -84,6 +109,8 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 			fprintf(stderr, "\n=== done ===\n");
 		} 
 	}
+
+	set_next_server();
 }
 
 
@@ -249,6 +276,8 @@ int tree_skel_init(char* zoo_ip) {
 		exit(EXIT_FAILURE);
 	}
 
+	//printf("Hostname : %s\n",zh->hostname);
+
 	sleep(3);
 
 	if (is_connected) {
@@ -282,20 +311,14 @@ int tree_skel_init(char* zoo_ip) {
 
 		znode_id = atoi(tmp);
 
-		zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+		children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+		//g_children_list = (zoo_string *) malloc(sizeof(zoo_string));
 
 		if (ZOK != zoo_wget_children(zh, chain_path, &child_watcher, watcher_ctx, children_list)) {
 			fprintf(stderr, "Error setting watch at %s!\n", chain_path);
 		}
-		fprintf(stderr, "\n=== znode listing === [ %s ]", chain_path); 
-		for (int i = 0; i < children_list->count; i++)  {
-			fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
-		}
-		fprintf(stderr, "\n=== done ===\n");
 
 		sleep(5); //Is this rlly nec?
-
-		set_next_server();
 
 		free(tmp);
 		free(new_path);

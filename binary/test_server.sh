@@ -1,6 +1,7 @@
 #!/bin/bash 
+fuser -k 6000/tcp
 clear
 cd ..
 make
 cd binary/
-gdb -tui -ex=r --args tree-server 6000 localhost:2181
+gdb -ex=r --args tree-server 6000 localhost:2181
