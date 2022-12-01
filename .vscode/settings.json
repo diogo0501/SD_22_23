@@ -2,6 +2,8 @@
     "files.associations": {
         "message-private.h": "c",
         "server_structs-private.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "zookeeper.h": "c",
+        "stdlib.h": "c"
     }
 }

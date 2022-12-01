@@ -12,11 +12,55 @@ Miguel Santos, fc54461
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
+#include <zookeeper/zookeeper.h>
+#include <errno.h>
+#include <unistd.h> 
 
 /* Remote tree. A definir pelo grupo em client_stub-private.h
  */
 struct rtree_t;
+
+static int is_connected;
+static zhandle_t *zh;
+int ZDATALEN = 1024 * 1024;
+static char *root_path = "/node";
+typedef struct String_vector zoo_string;
+static char *watcher_ctx = "ZooKeeper Data Watcher";
+
+/**
+* Watcher function for connection state change events
+*/
+void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+	if (type == ZOO_SESSION_EVENT) {
+		if (state == ZOO_CONNECTED_STATE) {
+			is_connected = 1; 
+		} else {
+			is_connected = 0; 
+		}
+	}
+}
+
+/**
+* Data Watcher function for /chain node
+*/
+static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx) {
+	zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+	int zoo_data_len = ZDATALEN;
+
+	if (state == ZOO_CONNECTED_STATE)	 {
+		if (type == ZOO_CHILD_EVENT) {
+		/* Get the updated children and reset the watch */ 
+			if (ZOK != zoo_wget_children(zh, root_path, child_watcher, watcher_ctx, children_list)) {
+				fprintf(stderr, "Error setting watch at %s!\n", root_path);
+			}
+			fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
+			for (int i = 0; i < children_list->count; i++)  {
+				fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+			}
+			fprintf(stderr, "\n=== done ===\n");
+		} 
+	}
+}
 
 /* Função para estabelecer uma associação entre o cliente e o servidor, 
  * em que address_port é uma string no formato <hostname>:<port>.
@@ -24,6 +68,37 @@ struct rtree_t;
  */
 struct rtree_t *rtree_connect(const char *address_port){
 
+    zh = zookeeper_init(address_port, connection_watcher, 2000, 0, NULL, 0);
+
+    if (zh == NULL) {
+        fprintf(stderr, "Error connecting to ZooKeeper server!\n");
+        return NULL;
+    }
+
+	zoo_string *children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+	while (1) {
+		if (is_connected) {
+			if (ZNONODE == zoo_exists(zh, root_path, 0, NULL)) {
+				if (ZOK == zoo_create( zh, root_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
+					fprintf(stderr, "%s created!\n", root_path);
+				} else {
+					fprintf(stderr,"Error Creating %s!\n", root_path);
+					exit(EXIT_FAILURE);
+				} 
+			}	
+			if (ZOK != zoo_wget_children(zh, root_path, &child_watcher, watcher_ctx, children_list)) {
+				fprintf(stderr, "Error setting watch at %s!\n", root_path);
+			}
+			fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
+			for (int i = 0; i < children_list->count; i++)  {
+				fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+			}
+			fprintf(stderr, "\n=== done ===\n");
+			pause(); 
+		}
+	}
+
+    //ns onde ir buscar os ips dos filhos c id maior e menor de chain 
     struct rtree_t *rtree = malloc(sizeof(struct rtree_t));
 
     char *tok = strtok((char *)address_port, ":");
@@ -48,6 +123,7 @@ struct rtree_t *rtree_connect(const char *address_port){
         return NULL;
     }
 
+	free(children_list);
     return rtree; 
 
 }
