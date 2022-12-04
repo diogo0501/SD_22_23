@@ -10,6 +10,7 @@ Miguel Santos, fc54461
 #include "message-private.h"
 #include "server_structs-private.h"
 #include "tree_skel.h"
+#include "client_stub.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -18,12 +19,17 @@ Miguel Santos, fc54461
 #include <pthread.h>
 #include <errno.h>
 #include <zookeeper/zookeeper.h>
+#include <arpa/inet.h>
 
 int ZDATALEN = 1024 * 1024;
 
+struct rtree_t *nex_serv_conn;
 static char *watcher_ctx = "ZooKeeper Data Watcher";
 typedef struct String_vector zoo_string; 
 zoo_string* children_list; 
+char** children_socks;
+int new_path_len = 1024;
+char* new_path;
 static zhandle_t *zh;
 static char *chain_path = "/chain"; 
 static char *new_chain_path = "/chain"; 
@@ -34,7 +40,11 @@ int last_assigned;
 int is_connected;
 int counter = 1;
 int znode_id;
-int next_server; //Nao sei se o id é int ou node.. como no data[i]
+int next_serv_sock;
+int next_serv_port;
+int next_server_id = INT16_MAX; 
+struct sockaddr_in next_server_addr;
+
 
 pthread_mutex_t process_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ops_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -43,52 +53,78 @@ pthread_cond_t queue_not_empty = PTHREAD_COND_INITIALIZER;
 pthread_cond_t process_cond = PTHREAD_COND_INITIALIZER;
 
 static void set_next_server() {
-	int highest_znode_id = INT8_MIN;
+	
+	next_server_id = INT16_MAX;
+	int highest_znode_id = INT16_MIN;
 	int id = 0;
 	char* tmp2 = "node";
 	char* next_serv_path = malloc(sizeof(char*));
 	char* zdata_buf = malloc(ZDATALEN * sizeof(char*));
 
+	if((next_serv_sock = socket(AF_INET,SOCK_STREAM,0)) < 0 ) {
+		perror("Error on creating socket\n");
+		exit(EXIT_FAILURE);
+	}
+
 	for (int i = 0; i < children_list->count; i++)  {
 
 		char* tmp = malloc(sizeof(char*));
+
+		//Could be cut. Strcmp can do this kind of compare
 		
-		strncpy(tmp, children_list->data[i] + strlen(tmp2), strlen(children_list->data[i]) + 1 - strlen("node"));
+		strncpy(tmp, children_list->data[i] + strlen(tmp2), 
+				strlen(children_list->data[i]) + 1 - strlen("node"));
 
 		id = atoi(tmp);
 
-		if (id > highest_znode_id) {
-			highest_znode_id = id;
+		printf("Id : %d\n",id);
+
+		printf("Port : %s\n",children_socks[i]);
+
+		if(id > znode_id && id < next_server_id) {
+			next_server_id = id;
 			next_serv_path = children_list->data[i];
+			next_serv_port = atoi(children_socks[i]);
 		}
 
 	}
-	printf("\nHighest id found : %d\n\n",highest_znode_id);
 
-	if(highest_znode_id <= znode_id) {
-		//.... NULL in next server
+	if(next_server_id == INT16_MAX) {
+		next_serv_path = new_path;
+		next_server_id = znode_id;
+		next_serv_port = -1;
+		nex_serv_conn = NULL;
+		printf("Socket n : %d\n",next_serv_port);
+
 	}
+	else {
+		char *tmp3 = malloc(sizeof(char*) * 120);
+		strcat(tmp3,"/chain/");
+		strcat(tmp3,next_serv_path);
 
-	//TODO : Fix path of next server. Seg Fault em strcat. Tem a ver com o size
+		printf("Next Server Path : %s\n",tmp3);
+		if (ZNONODE == zoo_exists(zh, tmp3, 0, NULL)) {
+				fprintf(stderr, "%s doesn't exist!\n", next_serv_path);
+				exit(EXIT_FAILURE);
+		}
 
-	char *tmp3 = malloc(sizeof(char*) * 120);
-	strcat(tmp3,"/chain/");
-	strcat(tmp3,next_serv_path);
+		printf("Socket n : %d\n",next_serv_port);
 
-	printf("Next Server Path : %s\n",tmp3);
-	if (ZNONODE == zoo_exists(zh, tmp3, 0, NULL)) {
-			fprintf(stderr, "%s doesn't exist!\n", next_serv_path);
+		char *next_ip;
+		next_ip = malloc(sizeof(char) * 120);
+		snprintf(next_ip,120,"127.0.0.1:%d",next_serv_port); //IP hardcoded. TODO : Chanhe this
+
+		printf("%s\n",next_ip);
+
+		// int port = 0;
+		nex_serv_conn = rtree_connect(next_ip);
+
+		if(nex_serv_conn == NULL) {
+			fprintf(stderr, "Error on connecting to next server\n");
 			exit(EXIT_FAILURE);
+		}
+		printf("Next server connected\n");
 	}
-
-	if (ZOK != zoo_get(zh, tmp3, 0, zdata_buf, &ZDATALEN, NULL)) {
-		printf("ERROR GETTING BACKUP INFO\n");
-	}
-
-	//Getting ip is not solved yet
-	printf("Next Server IP : %s\n",zdata_buf);
-	//TODO : Get ip from server with highest id
-
 
 }
 
@@ -104,15 +140,34 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 			}
 			fprintf(stderr, "\n=== znode listing === [ %s ]", chain_path); 
 			for (int i = 0; i < children_list->count; i++)  {
-				fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+				//fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+
+				char tmp[120] = "";
+				strcat(tmp,chain_path);
+				strcat(tmp,"/");
+				strcat(tmp,children_list->data[i]);
+				printf("\n %s \n",tmp);
+
+				char *zdatabuf = calloc(1, ZDATALEN);
+				if(ZOK != zoo_get(zh,tmp ,0, zdatabuf,&ZDATALEN,NULL)) {
+
+					fprintf(stderr, "Error getting data from %s!\n",children_list->data[i]);
+				}
+				printf("Buffer : %s\n",zdatabuf);
+				memcpy(children_socks[i],zdatabuf,sizeof(zdatabuf));
+				free(zdatabuf);
+
 			}
 			fprintf(stderr, "\n=== done ===\n");
+
+			printf("Children count : %d\n", children_list->count);
+
+			set_next_server();
+			
 		} 
 	}
 
-	set_next_server();
 }
-
 
 
 /* Inicio da guarda para garantir acesso exclusivo a zona critica
@@ -239,7 +294,71 @@ void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, v
  * função invoke(). 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
-int tree_skel_init(char* zoo_ip) {
+int tree_skel_init(char* zoo_ip, char* port) {
+
+	server_side_tree = tree_create();
+
+	zh = zookeeper_init(zoo_ip, connection_watcher, 2000, 0, 0, 0);
+
+	if (zh == NULL) {
+		fprintf(stderr,"Error connecting to ZooKeeper server[%d]!\n", errno);
+		exit(EXIT_FAILURE);
+	}
+
+	//printf("Hostname : %s\n",zh->hostname);
+
+	sleep(3);
+
+	if (is_connected) {
+		if (ZNONODE == zoo_exists(zh, chain_path, 0, NULL)) {
+
+			int new_chain_len = 1024;
+
+			new_chain_path = malloc(new_chain_len);
+
+
+
+			if (ZOK != zoo_create(zh, chain_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
+				fprintf(stderr, "Error creating znode from path %s!\n", chain_path);
+			    exit(EXIT_FAILURE);
+			}
+		}
+
+		char node_path[120] = "";
+		strcat(node_path,new_chain_path); 
+		strcat(node_path,"/node"); 
+		new_path = malloc (new_path_len);
+		
+		
+		if (ZOK != zoo_create(zh, node_path, port, strlen(port), &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL 
+		| ZOO_SEQUENCE, new_path, new_path_len)) {
+			fprintf(stderr, "Error creating znode from path %s!\n", new_path);
+			exit(EXIT_FAILURE);
+		}
+
+		char* tmp = malloc(sizeof(char*)*10 + 1);
+		strncpy(tmp, new_path + strlen(node_path), 10);
+
+		znode_id = atoi(tmp);
+
+		children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+		children_socks = malloc(ZDATALEN * 10); //10 servers hardcoded
+		for(int i = 0; i < 10; i++) {
+			children_socks[i] = malloc(ZDATALEN);
+		}
+		//g_children_list = (zoo_string *) malloc(sizeof(zoo_string));
+
+		if (ZOK != zoo_wget_children(zh, chain_path, &child_watcher, watcher_ctx, children_list)) {
+			fprintf(stderr, "Error setting watch at %s!\n", chain_path);
+		}
+
+		//set_next_server();
+
+		sleep(5); //Is this rlly nec?
+
+		free(tmp);
+		free(new_path);
+	}
 
 	ops_info = malloc(sizeof(struct op_proc));
 
@@ -267,63 +386,6 @@ int tree_skel_init(char* zoo_ip) {
 		exit(EXIT_FAILURE);
 	}
 
-	server_side_tree = tree_create();
-
-	zh = zookeeper_init(zoo_ip, connection_watcher, 2000, 0, 0, 0);
-
-	if (zh == NULL) {
-		fprintf(stderr,"Error connecting to ZooKeeper server[%d]!\n", errno);
-		exit(EXIT_FAILURE);
-	}
-
-	//printf("Hostname : %s\n",zh->hostname);
-
-	sleep(3);
-
-	if (is_connected) {
-		if (ZNONODE == zoo_exists(zh, chain_path, 0, NULL)) {
-
-			int new_chain_len = 1024;
-
-			new_chain_path = malloc(new_chain_len);
-
-			if (ZOK != zoo_create(zh, chain_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
-				fprintf(stderr, "Error creating znode from path %s!\n", chain_path);
-			    exit(EXIT_FAILURE);
-			}
-		}
-
-		char node_path[120] = "";
-		strcat(node_path,new_chain_path); 
-		strcat(node_path,"/node"); 
-		int new_path_len = 1024;
-		char* new_path = malloc (new_path_len);
-		
-		//TODO : change value or wtv
-		if (ZOK != zoo_create(zh, node_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL 
-		| ZOO_SEQUENCE, new_path, new_path_len)) {
-			fprintf(stderr, "Error creating znode from path %s!\n", new_path);
-			exit(EXIT_FAILURE);
-		} 
-
-		char* tmp = malloc(sizeof(char*)*10 + 1);
-		strncpy(tmp, new_path + strlen(node_path), 10);
-
-		znode_id = atoi(tmp);
-
-		children_list =	(zoo_string *) malloc(sizeof(zoo_string));
-		//g_children_list = (zoo_string *) malloc(sizeof(zoo_string));
-
-		if (ZOK != zoo_wget_children(zh, chain_path, &child_watcher, watcher_ctx, children_list)) {
-			fprintf(stderr, "Error setting watch at %s!\n", chain_path);
-		}
-
-		sleep(5); //Is this rlly nec?
-
-		free(tmp);
-		free(new_path);
-	}
-
 	return server_side_tree == NULL ? -1 : 0;
 }
 
@@ -346,6 +408,9 @@ void tree_skel_destroy() {
  * Retorna 0 (OK) ou -1 (erro, por exemplo, árvore nao incializada)
 */
 int invoke(struct message_t *msg) {
+
+	//Idk if its supposed to be here
+	//set_next_server();
 
 	pthread_mutex_lock(&ops_lock);
 
@@ -558,10 +623,24 @@ void *process_request(void *params) {
 
 		guard_start();
 
+		int nex_status = 0;
+
 		if(req->op == 0) {
 			int status = tree_del(server_side_tree, req->key);
+			rtree_del(nex_serv_conn,req->key);
+
 		} else {
+
 			int status = tree_put(server_side_tree, req->key, req->data);
+			struct entry_t *ent = malloc(sizeof(struct entry_t));
+			ent->key = req->key;
+			ent->value = req->data;
+			nex_status = rtree_put(nex_serv_conn,ent);
+			
+		}
+
+		if(nex_status == -1) {
+			fprintf(stderr,"Error on sending request to next server. If this server is the last in the chain, please ignore this message\n");
 		}
 
 		pthread_mutex_lock(&ops_lock);
@@ -570,6 +649,7 @@ void *process_request(void *params) {
 		pthread_mutex_unlock(&ops_lock);
 		
 		guard_end();
+
 	}
 	return NULL;
 }

@@ -9,7 +9,7 @@
  * função invoke(). 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY)
  */
-int tree_skel_init();
+int tree_skel_init(char* zoo_ip , char* port);
 
 /* Liberta toda a memória e recursos alocados pela função tree_skel_init.
  */

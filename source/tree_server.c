@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
 	int short socket_num;
 	int socket,connsocket;
 	char *endptr;
+	char *port;
 	char* zoo_ip;
 	char* zoo_ip_check;
 	char *endptr2;
@@ -34,6 +35,8 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
+	port = argv[1];
+
 	zoo_ip = argv[2];
 	memcpy(zoo_ip_check,zoo_ip,sizeof(zoo_ip));
 
@@ -42,8 +45,8 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-	tree_skel_init(zoo_ip);
 	socket = network_server_init((short) socket_num);
+	tree_skel_init(zoo_ip,port);
 
 	if(socket == -1) {
 		exit(-1);
