@@ -270,6 +270,8 @@ int network_send(int client_socket, struct message_t *msg) {
 int network_server_close() {
 		
 	close(server_sock);
+
+	tree_skel_destroy();
 	
 	printf("Abnormal termination of the process! The socket is now closed\n");
 

@@ -61,7 +61,6 @@ int main(int argc, char **argv) {
 	}
 
 	network_server_close();
-	tree_skel_destroy();
 
 	return 0;
 
