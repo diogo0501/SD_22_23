@@ -12,19 +12,197 @@ Miguel Santos, fc54461
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <zookeeper/zookeeper.h>
+#include <errno.h>
+#include <unistd.h> 
 
 
 /* Remote tree. A definir pelo grupo em client_stub-private.h
  */
 struct rtree_t;
 
+static int is_connected;
+static zhandle_t *zh;
+int ZDATALENGTH = 1024 * 1024;
+static char *root_path = "/chain";
+typedef struct String_vector zoo_string;
+static char *watcher_ctx = "ZooKeeper Data Watcher";
+char** children_socks;
+
+/**
+* Watcher function for connection state change events
+*/
+void client_connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+	if (type == ZOO_SESSION_EVENT) {
+		if (state == ZOO_CONNECTED_STATE) {
+			is_connected = 1; 
+		} else {
+			is_connected = 0; 
+		}
+	}
+}
+
+/**
+* Data Watcher function for /chain node
+*/
+static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx) {
+	zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+	int zoo_data_len = ZDATALENGTH;
+
+	if (state == ZOO_CONNECTED_STATE)	 {
+		if (type == ZOO_CHILD_EVENT) {
+		/* Get the updated children and reset the watch */ 
+			if (ZOK != zoo_wget_children(zh, root_path, &child_watcher, watcher_ctx, children_list)) {
+				fprintf(stderr, "Error setting watch at %s!\n", root_path);
+			}
+			fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
+			for (int i = 0; i < children_list->count; i++)  {
+				fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+			}
+			for (int i = 0; i < children_list->count; i++)  {
+				//fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+
+				char tmp[120] = "";
+				strcat(tmp,root_path);
+				strcat(tmp,"/");
+				strcat(tmp,children_list->data[i]);
+				printf("\n %s \n",tmp);
+
+				char *zdatabuf = calloc(1, ZDATALENGTH);
+				if(ZOK != zoo_get(zh,tmp ,0, zdatabuf,&ZDATALENGTH,NULL)) {
+
+					fprintf(stderr, "Error getting data from %s!\n",children_list->data[i]);
+				}
+				printf("Buffer : %s\n",zdatabuf);
+				memcpy(children_socks[i],zdatabuf,sizeof(zdatabuf));
+				free(zdatabuf);
+
+			}
+			fprintf(stderr, "\n=== done ===\n");
+		} 
+	}
+}
 /* Função para estabelecer uma associação entre o cliente e o servidor, 
  * em que address_port é uma string no formato <hostname>:<port>.
  * Retorna NULL em caso de erro.
  */
 struct rtree_t *rtree_connect(const char *address_port){
 
+    zh = zookeeper_init(address_port, client_connection_watcher, 2000, 0, NULL, 0);
+
+    if (zh == NULL) {
+        fprintf(stderr, "Error connecting to ZooKeeper server!\n");
+        return NULL;
+    }
+
+	zoo_string *children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+	while (1) {
+		if (is_connected) {
+			if (ZNONODE == zoo_exists(zh, root_path, 0, NULL)) {
+				if (ZOK == zoo_create( zh, root_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
+					fprintf(stderr, "%s created!\n", root_path);
+				} else {
+					fprintf(stderr,"Error Creating %s!\n", root_path);
+					exit(EXIT_FAILURE);
+				} 
+			}	
+			if (ZOK != zoo_wget_children(zh, root_path, &child_watcher, watcher_ctx, children_list)) {
+				fprintf(stderr, "Error setting watch at %s!\n", root_path);
+			}
+			fprintf(stderr, "\n=== znode listing === [ %s ]", root_path); 
+			for (int i = 0; i < children_list->count; i++)  {
+				fprintf(stderr, "\n(%d): %s", i+1, children_list->data[i]);
+			}
+            children_socks = malloc(ZDATALENGTH * 10); //10 servers hardcoded
+            for(int i = 0; i < 10; i++) {
+                children_socks[i] = malloc(ZDATALENGTH);
+            }
+			fprintf(stderr, "\n=== done ===\n");
+			pause(); 
+		}
+	}
+
+    //ns onde ir buscar os ips dos filhos c id maior e menor de chain
+	int id = 0;
+	char* tmp2 = "node";
+    int znode_id_max = INT16_MIN;
+    int znode_id_min = INT16_MAX;
+
+	char *max_serv_path = malloc(sizeof(char*));
+	char *min_serv_path = malloc(sizeof(char*));
+    char *max_serv_addr;
+    char *min_serv_addr; 
+
+	for (int i = 0; i < children_list->count; i++)  {
+
+		char* tmp = malloc(sizeof(char*));
+
+		//Could be cut. Strcmp can do this kind of compare
+		
+		strncpy(tmp, children_list->data[i] + strlen(tmp2), 
+				strlen(children_list->data[i]) + 1 - strlen("node"));
+
+		id = atoi(tmp);
+
+		printf("Id : %d\n",id);
+
+		printf("Port : %s\n",children_socks[i]);
+
+		if(id > znode_id_max) {
+            if(max_serv_addr == NULL)
+                max_serv_addr = malloc(strlen(children_socks[i]) + 1);
+            znode_id_max = id;
+			max_serv_path = children_list->data[i];
+			max_serv_addr = children_socks[i];
+
+		}
+
+        if(id < znode_id_min) {
+            if(min_serv_addr == NULL)
+                min_serv_addr = malloc(strlen(children_socks[i]) + 1);
+            znode_id_min = id;
+			min_serv_path = children_list->data[i];
+			min_serv_addr = children_socks[i];
+
+		}
+
+	}
+
     struct rtree_t *rtree = malloc(sizeof(struct rtree_t));
+
+    rtree->head = malloc(sizeof(struct rtree_t));
+
+    char *tok2 = strtok((char *)min_serv_addr, ":");
+    if(tok2 == NULL) {
+        return NULL;
+    }
+
+    rtree->head->ip = tok2;
+
+    tok2 = strtok(NULL, ":");
+
+    if(tok2 == NULL) {
+
+        return NULL;
+    }
+    rtree->head->port = atoi(tok2);
+
+    rtree->tail = malloc(sizeof(struct rtree_t));
+
+    char *tok3 = strtok((char *)max_serv_addr, ":");
+    if(tok3 == NULL) {
+        return NULL;
+    }
+
+    rtree->tail->ip = tok3;
+
+    tok3 = strtok(NULL, ":");
+
+    if(tok3 == NULL) {
+
+        return NULL;
+    }
+    rtree->tail->port = atoi(tok3);
 
     char *tok = strtok((char *)address_port, ":");
     if(tok == NULL) {
@@ -41,6 +219,7 @@ struct rtree_t *rtree_connect(const char *address_port){
     }
     rtree->port = atoi(tok);
 
+    //n entendo o "ligando-se a eles" do enunciado, eh ligar tp rtree_connect ou ligar ao srvr do zookeeper?
     int conectionStatus = network_connect(rtree);
 
     if(conectionStatus == -1) {
@@ -48,6 +227,19 @@ struct rtree_t *rtree_connect(const char *address_port){
         return NULL;
     }
 
+    int headConectionStatus = network_connect(rtree->head);
+    if(conectionStatus == -1) {
+        rtree_disconnect(rtree->head);
+        return NULL;
+    }
+
+    int tailConectionStatus = network_connect(rtree->tail);
+    if(conectionStatus == -1) {
+        rtree_disconnect(rtree->tail);
+        return NULL;
+    }
+
+	free(children_list);
     return rtree; 
 
 }
