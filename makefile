@@ -47,5 +47,3 @@ tree-client: $(BASE_OBJECTS) client-lib.o tree_client.o
 clean:
 	rm -f $(OBJECTFILES) $(OBJECTDIR)/sdmessage.pb-c.o $(LIBDIR)/client-lib.o $(BINARYDIR)/tree-server $(BINARYDIR)/tree-client
 
-clean:
-	rm -f $(OBJECTFILES) $(OBJECTDIR)/sdmessage.pb-c.o $(LIBDIR)/client-lib.o $(BINARYDIR)/tree-server $(BINARYDIR)/tree-client
