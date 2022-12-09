@@ -98,14 +98,14 @@ struct rtree_t *rtree_connect(const char *address_port){
 	zoo_string *children_list =	(zoo_string *) malloc(sizeof(zoo_string));
 	while (1) {
 		if (is_connected) {
-			if (ZNONODE == zoo_exists(zh, root_path, 0, NULL)) {
-				if (ZOK == zoo_create( zh, root_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
-					fprintf(stderr, "%s created!\n", root_path);
-				} else {
-					fprintf(stderr,"Error Creating %s!\n", root_path);
-					exit(EXIT_FAILURE);
-				} 
-			}	
+			// if (ZNONODE == zoo_exists(zh, root_path, 0, NULL)) {
+			// 	if (ZOK == zoo_create( zh, root_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
+			// 		fprintf(stderr, "%s created!\n", root_path);
+			// 	} else {
+			// 		fprintf(stderr,"Error Creating %s!\n", root_path);
+			// 		exit(EXIT_FAILURE);
+			// 	} 
+			// }	
 			if (ZOK != zoo_wget_children(zh, root_path, &child_watcher, watcher_ctx, children_list)) {
 				fprintf(stderr, "Error setting watch at %s!\n", root_path);
 			}
@@ -228,13 +228,13 @@ struct rtree_t *rtree_connect(const char *address_port){
     }
 
     int headConectionStatus = network_connect(rtree->head);
-    if(conectionStatus == -1) {
+    if(headConectionStatus == -1) {
         rtree_disconnect(rtree->head);
         return NULL;
     }
 
     int tailConectionStatus = network_connect(rtree->tail);
-    if(conectionStatus == -1) {
+    if(tailConectionStatus == -1) {
         rtree_disconnect(rtree->tail);
         return NULL;
     }
@@ -286,7 +286,7 @@ int rtree_put(struct rtree_t *rtree, struct entry_t *entry) {
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
 
-    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+    struct message_t *resp = network_send_receive(rtree->head, msg_wrapper);
     if(resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
         free(resp);
@@ -333,7 +333,7 @@ struct data_t *rtree_get(struct rtree_t *rtree, char *key) {
 
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
-    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+    struct message_t *resp = network_send_receive(rtree->tail, msg_wrapper);
 
     if(resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
@@ -395,7 +395,7 @@ int rtree_del(struct rtree_t *rtree, char *key) {
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
 
-    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+    struct message_t *resp = network_send_receive(rtree->head, msg_wrapper);
 
     if(resp == NULL) {
     	return -1;
@@ -441,7 +441,7 @@ int rtree_size(struct rtree_t *rtree) {
     
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t)); 
 	msg_wrapper->recv_msg = msg;
-    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+    struct message_t *resp = network_send_receive(rtree->tail, msg_wrapper);
 
     if(resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
@@ -482,7 +482,7 @@ int rtree_height(struct rtree_t *rtree) {
     
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
-    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+    struct message_t *resp = network_send_receive(rtree->tail, msg_wrapper);
 
     if(resp == NULL || resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
@@ -524,7 +524,7 @@ char **rtree_get_keys(struct rtree_t *rtree) {
 
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
-    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+    struct message_t *resp = network_send_receive(rtree->tail, msg_wrapper);
 
     if(resp == NULL) {
         free(msg_wrapper);
@@ -580,7 +580,7 @@ void **rtree_get_values(struct rtree_t *rtree) {
 
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
 	msg_wrapper->recv_msg = msg;
-    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+    struct message_t *resp = network_send_receive(rtree->tail, msg_wrapper);
 
     if(resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
@@ -630,7 +630,7 @@ int rtree_verify(struct rtree_t *rtree, int op_n){
     
     struct message_t *msg_wrapper = malloc(sizeof(struct message_t));
     msg_wrapper->recv_msg = msg;
-    struct message_t *resp = network_send_receive(rtree, msg_wrapper);
+    struct message_t *resp = network_send_receive(rtree->tail, msg_wrapper);
 
     if(resp == NULL || resp->recv_msg == NULL) {
         message_t__free_unpacked(resp->recv_msg, NULL);
