@@ -2,6 +2,7 @@
     "files.associations": {
         "message-private.h": "c",
         "server_structs-private.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "client_stub-private.h": "c"
     }
 }
