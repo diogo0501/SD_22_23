@@ -162,7 +162,7 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 
 void sig_handler(int signum) {
 	rtree_disconnect(head);
-	rtree_disconnect(rtree);
+	//rtree_disconnect(rtree);
 	rtree_disconnect(tail);
 	free(linha);
 	exit(-1);
@@ -187,6 +187,8 @@ int main(int argc, char **argv) {
 	for(int i = 0; i < 10; i++) {
 		children_socks[i] = malloc(ZDATALEN);
 	}
+
+	zoo_set_debug_level((ZooLogLevel)0);
 	
 	zh = zookeeper_init(port_address, client_connection_watcher, 2000, 0, NULL, 0);
 
@@ -295,7 +297,7 @@ int main(int argc, char **argv) {
 						char *entry_key = malloc(strlen(tok) + 1);
 						strcpy(entry_key, tok);
 
-						int status = rtree_del(rtree,entry_key);
+						int status = rtree_del(head,entry_key);
 
 						if(status == -1) {
 							printf("Error trying to execute operation 'del'\n");
@@ -308,14 +310,14 @@ int main(int argc, char **argv) {
 						printf("Invalid input format required to execute operation 'del'\n");
 					}
 				}  else if(tok != NULL & strcmp(tok, "size") == 0) {
-					printf("Tree with size: %d\n", rtree_size(rtree));
+					printf("Tree with size: %d\n", rtree_size(tail));
 					invalid_op = 0;
 				}  else if(tok != NULL & strcmp(tok, "height") == 0) {
-					printf("Tree with height: %d\n", rtree_height(rtree));
+					printf("Tree with height: %d\n", rtree_height(tail));
 					invalid_op = 0;
 				}  else if(tok != NULL & strcmp(tok, "getkeys") == 0) {
 
-					char **keys = rtree_get_keys(rtree);
+					char **keys = rtree_get_keys(tail);
 
 					if (keys[0] == NULL) {
 						printf("There is currently no nodes in the tree\n");
@@ -336,7 +338,7 @@ int main(int argc, char **argv) {
 					free(keys);
 				}  else if(tok != NULL & strcmp(tok, "getvalues") == 0) {
 
-					void **values = rtree_get_values(rtree);
+					void **values = rtree_get_values(tail);
 					int i = 0;
 
 					if(values[0] == NULL) {
@@ -359,7 +361,7 @@ int main(int argc, char **argv) {
 					tok = strtok(NULL, " ");
 
 					if(tok != NULL) {
-						int status = rtree_verify(rtree,atoi(tok));
+						int status = rtree_verify(tail,atoi(tok));
 
 						if(status == -1) {
 							printf("There has been an error on verifying the operation\n");
@@ -382,9 +384,11 @@ int main(int argc, char **argv) {
 				else if(tok != NULL & strcmp(tok, "quit") == 0) {
 
 					free(op_args);
-					network_close(rtree);
+					network_close(head);
+					network_close(tail);
 					free(linha);
-					rtree_disconnect(rtree);
+					rtree_disconnect(head);
+					rtree_disconnect(tail);
 					return 0;
 
 				}

@@ -17,7 +17,7 @@ Miguel Santos, fc54461
 #include <pthread.h>
 
 #define MAX_SOCKETS 4 //Mock max client. Im not sure if there is a limit or what that limit is
-#define TIME_OUT 10
+#define TIME_OUT 50
 
 int server_sock;
 
