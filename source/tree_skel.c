@@ -90,8 +90,7 @@ static void set_next_server() {
 		nex_serv_conn = NULL;
 		printf("Next server socket n : %d\n",next_serv_port);
 
-	}
-	else {
+	} else {
 		char *tmp3 = malloc(sizeof(char*) * 120);
 		strcat(tmp3,"/chain/");
 		strcat(tmp3,next_serv_path);
@@ -105,7 +104,7 @@ static void set_next_server() {
 
 		char *next_ip;
 		next_ip = malloc(sizeof(char) * 120);
-		snprintf(next_ip,120,"localhost:%d",next_serv_port); 
+		snprintf(next_ip,120,"127.0.0.1:%d",next_serv_port); 
 
 		nex_serv_conn = rtree_connect(next_ip);
 
@@ -153,7 +152,7 @@ static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath
 			}
 			fprintf(stderr, "\n=== done ===\n");
 
-			//sleep(3); //prevenir race conditions
+			sleep(3); //prevenir race conditions
 
 			set_next_server();
 			
@@ -319,8 +318,6 @@ int tree_skel_init(char* zoo_ip, char* port) {
 			}
 		}
 
-		sleep(3);
-
 		children_list =	(zoo_string *) malloc(sizeof(zoo_string));
 		children_socks = malloc(ZDATALEN * 10); 
 		for(int i = 0; i < 10; i++) {
@@ -330,8 +327,6 @@ int tree_skel_init(char* zoo_ip, char* port) {
 		if (ZOK != zoo_wget_children(zh, chain_path, &child_watcher, watcher_ctx, children_list)) {
 			fprintf(stderr, "Error setting watch at %s!\n", chain_path);
 		}
-
-		sleep(3);
 
 		char node_path[120] = "";
 		strcat(node_path,chain_path); 

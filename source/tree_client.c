@@ -96,8 +96,6 @@ void set_head_tail() {
 		fprintf(stderr,"Error on connecting to head or tail/n");
 	}
 	
-	//Basta fazer o set e acho que fica feito
-	//rtree = rtree_connect(port_address);
 }
 
 static void child_watcher(zhandle_t *wzh, int type, int state, const char *zpath, void *watcher_ctx) {
@@ -205,10 +203,7 @@ int main(int argc, char **argv) {
 			fprintf(stderr, "Error setting watch at %s!\n", chain_path);
 	}
 
-	//Soluçao à pedreiro. Isto é para mudar
 	child_watcher(zh, INIT, 0, chain_path, watcher_ctx);
-
-	//set_head_tail();
 
 	while(1) {
 		int invalid_op = 1;
