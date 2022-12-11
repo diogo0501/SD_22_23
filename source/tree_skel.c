@@ -637,7 +637,7 @@ void *process_request(void *params) {
 			ent->key = req->key;
 			ent->value = req->data;
 			nex_status = rtree_put(nex_serv_conn,ent);
-
+			
 			while(nex_status == -1 && znode_id != next_server_id) {
 				fprintf(stderr,"Error on sending request to next server. We're trying to fix it\n");
 				set_next_server();
